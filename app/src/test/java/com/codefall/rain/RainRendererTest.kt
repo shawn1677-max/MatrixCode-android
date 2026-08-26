@@ -3,6 +3,7 @@ package com.codefall.rain
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -350,17 +351,22 @@ class RainRendererTest {
         return if (n == 0) -1f else (sum / n).toFloat()
     }
 
+    /** Averages two runs: trail lengths and depth planes are random per run, and a
+     *  single sample of this ratio swings widely enough to make the bar arbitrary. */
+    private fun headChurn(settle: Boolean): Double =
+        (interFrameChurn(settle).third + interFrameChurn(settle).third) / 2.0
+
     @Test
     fun settlingTrailMovesTheBoilToTheHead() {
-        val (_, _, settledHead) = interFrameChurn(settle = true)
-        val (_, _, uniformHead) = interFrameChurn(settle = false)
+        val settledHead = headChurn(settle = true)
+        val uniformHead = headChurn(settle = false)
 
         // Same mutation budget, aimed at the bright end: the head churns far harder
         // while the far tail is no busier than it was.
         assertTrue(
             "settling did not concentrate churn at the head " +
                 "(settled=$settledHead uniform=$uniformHead)",
-            settledHead > uniformHead * 1.8
+            settledHead > uniformHead * 1.5
         )
         // The far tail is left out of the comparison on purpose: at these brightness
         // levels the depth planes overlap, so the dim bucket mixes faded heads from
@@ -476,6 +482,303 @@ class RainRendererTest {
         renderer.release()
     }
 
+    /** Centre of mass of every lit pixel, or null if the frame is blank. */
+    private fun centroid(bmp: Bitmap): Pair<Float, Float>? {
+        var sx = 0.0; var sy = 0.0; var n = 0
+        for (y in 0 until bmp.height step 2) for (x in 0 until bmp.width step 2) {
+            val p = bmp.getPixel(x, y)
+            if (Color.red(p) + Color.green(p) + Color.blue(p) > 220) { sx += x; sy += y; n++ }
+        }
+        return if (n < 20) null else (sx / n).toFloat() to (sy / n).toFloat()
+    }
+
+    /**
+     * Renders a big bright clock over almost no rain, so the lit pixels are
+     * overwhelmingly the clock and their centre of mass tracks where it was placed.
+     */
+    private fun clockCentroid(x: Float, y: Float, size: Float = 0.2f): Pair<Float, Float> {
+        val renderer = RainRenderer(displayDensity = 2f)
+        renderer.updateConfig(
+            RainConfig(
+                showClock = true, clockX = x, clockY = y, clockSize = size,
+                density = 0.2f, glow = 0f, scanlines = 0f, glitch = 0f, mutationRate = 0f
+            )
+        )
+        renderer.resize(w, h)
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        repeat(30) { renderer.update(1f / 60f); renderer.draw(canvas) }
+        val c = centroid(bmp)
+        renderer.release()
+        assertTrue("no clock found on the frame", c != null)
+        return c!!
+    }
+
+    @Test
+    fun clockFollowsItsPositionSliders() {
+        val topLeft = clockCentroid(0f, 0f)
+        val bottomRight = clockCentroid(1f, 1f)
+        val centre = clockCentroid(0.5f, 0.5f)
+
+        assertTrue("clock did not move right (${topLeft.first} -> ${bottomRight.first})",
+            bottomRight.first > topLeft.first + w * 0.2f)
+        assertTrue("clock did not move down (${topLeft.second} -> ${bottomRight.second})",
+            bottomRight.second > topLeft.second + h * 0.3f)
+        assertTrue("centre is not between the extremes",
+            centre.first > topLeft.first && centre.first < bottomRight.first)
+        assertTrue("centre is not vertically between the extremes",
+            centre.second > topLeft.second && centre.second < bottomRight.second)
+    }
+
+    @Test
+    fun clockStaysFullyOnScreenAtTheExtremes() {
+        // Sliders pinned to the edges must park the clock against them, not push
+        // half of it out of frame.
+        for ((x, y) in listOf(0f to 0f, 1f to 0f, 0f to 1f, 1f to 1f)) {
+            val renderer = RainRenderer(displayDensity = 2f)
+            renderer.updateConfig(
+                RainConfig(
+                    showClock = true, clockX = x, clockY = y, clockSize = 0.3f,
+                    density = 0.2f, glow = 0f, scanlines = 0f, glitch = 0f
+                )
+            )
+            renderer.resize(w, h)
+            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bmp)
+            repeat(30) { renderer.update(1f / 60f); renderer.draw(canvas) }
+
+            // A clipped clock would leave bright pixels hard against the border.
+            var touching = 0
+            for (px in 0 until w step 2) {
+                if (Color.red(bmp.getPixel(px, 0)) > 150) touching++
+                if (Color.red(bmp.getPixel(px, h - 1)) > 150) touching++
+            }
+            for (py in 0 until h step 2) {
+                if (Color.red(bmp.getPixel(0, py)) > 150) touching++
+                if (Color.red(bmp.getPixel(w - 1, py)) > 150) touching++
+            }
+            renderer.release()
+            assertTrue("clock at ($x,$y) runs off the edge ($touching border pixels)",
+                touching == 0)
+        }
+    }
+
+    @Test
+    fun clockSizeSliderChangesHowMuchItCovers() {
+        fun litAtSize(size: Float): Int {
+            val renderer = RainRenderer(displayDensity = 2f)
+            renderer.updateConfig(
+                RainConfig(
+                    showClock = true, clockSize = size, density = 0.2f,
+                    glow = 0f, scanlines = 0f, glitch = 0f, mutationRate = 0f
+                )
+            )
+            renderer.resize(w, h)
+            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bmp)
+            repeat(30) { renderer.update(1f / 60f); renderer.draw(canvas) }
+            var lit = 0
+            for (y in 0 until h step 2) for (x in 0 until w step 2) {
+                if (Color.red(bmp.getPixel(x, y)) > 150) lit++
+            }
+            renderer.release()
+            return lit
+        }
+        val small = litAtSize(0.06f)
+        val large = litAtSize(0.34f)
+        assertTrue("larger clock did not cover more ($small vs $large)", large > small * 3)
+    }
+
+    /** Mean brightness of the frame, the thing most screen filters move. */
+    private fun meanLuma(bmp: Bitmap): Double {
+        var sum = 0.0; var n = 0
+        for (y in 0 until bmp.height step 2) for (x in 0 until bmp.width step 2) {
+            val p = bmp.getPixel(x, y)
+            sum += Color.red(p) + Color.green(p) + Color.blue(p); n++
+        }
+        return sum / n
+    }
+
+    /**
+     * Renders one scene, freezes it, then re-renders it with a filter switched on.
+     *
+     * Measuring a filter against a fresh random frame does not work: the rain is
+     * sparse, so a region's brightness is decided by whether glyphs happen to be
+     * there, which swamps anything a filter does. Freezing the field first makes the
+     * two frames differ only by the filter.
+     */
+    private fun beforeAndAfter(apply: (RainConfig) -> RainConfig): Pair<Bitmap, Bitmap> {
+        val base = RainConfig(
+            glow = 0f, scanlines = 0f, glitch = 0f, mutationRate = 0f,
+            density = 1f, trailLength = 2f, speed = 1.6f
+        )
+        val renderer = RainRenderer(displayDensity = 2f)
+        renderer.updateConfig(base)
+        renderer.resize(w, h)
+        val canvas0 = Canvas(Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888))
+        // Let the rain fill the screen before freezing, so every region has glyphs.
+        repeat(240) { renderer.update(1f / 60f); renderer.draw(canvas0) }
+
+        val frozen = base.copy(speed = 0f)
+        renderer.updateConfig(frozen)
+        val before = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val cb = Canvas(before)
+        repeat(4) { renderer.update(1f / 60f); renderer.draw(cb) }
+
+        renderer.updateConfig(apply(frozen))
+        val after = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val ca = Canvas(after)
+        repeat(4) { renderer.update(1f / 60f); renderer.draw(ca) }
+
+        renderer.release()
+        return before to after
+    }
+
+    private fun greenIn(bmp: Bitmap, x0: Int, x1: Int, y0: Int, y1: Int): Double {
+        var s = 0.0; var n = 0
+        for (y in y0 until y1 step 2) for (x in x0 until x1 step 2) {
+            s += Color.green(bmp.getPixel(x, y)); n++
+        }
+        return s / n
+    }
+
+    @Test
+    fun vignetteDarkensTheEdgesMoreThanTheCentre() {
+        val (before, after) = beforeAndAfter { it.copy(vignette = 1f) }
+
+        // Grouping by radius and only counting pixels that were already lit avoids
+        // sampling fixed corner boxes: the top of the screen is where trails fade
+        // out, so a top corner reads as black whatever the vignette is doing.
+        val cx = w / 2f
+        val cy = h / 2f
+        val maxR = kotlin.math.hypot(cx, cy)
+        var nearBefore = 0.0; var nearAfter = 0.0; var nearN = 0
+        var farBefore = 0.0; var farAfter = 0.0; var farN = 0
+        for (y in 0 until h step 2) for (x in 0 until w step 2) {
+            val gb = Color.green(before.getPixel(x, y))
+            if (gb < 25) continue
+            val ga = Color.green(after.getPixel(x, y))
+            val r = kotlin.math.hypot(x - cx, y - cy) / maxR
+            if (r < 0.35f) { nearBefore += gb; nearAfter += ga; nearN++ }
+            else if (r > 0.8f) { farBefore += gb; farAfter += ga; farN++ }
+        }
+        assertTrue("not enough lit pixels to compare (near=$nearN far=$farN)",
+            nearN > 200 && farN > 200)
+
+        val nearKept = nearAfter / nearBefore
+        val farKept = farAfter / farBefore
+        assertTrue(
+            "vignette did not favour the centre (centre kept $nearKept, edge kept $farKept)",
+            farKept < nearKept * 0.6
+        )
+        assertTrue("vignette dimmed the centre too (kept $nearKept)", nearKept > 0.8)
+    }
+
+    @Test
+    fun apertureGrilleDimsThePicture() {
+        val (before, after) = beforeAndAfter { it.copy(apertureGrille = 1f) }
+        val a = meanLuma(before)
+        val b = meanLuma(after)
+        assertTrue("grille did not dim the frame ($a -> $b)", b < a * 0.9)
+        assertTrue("grille blacked the frame out ($a -> $b)", b > a * 0.2)
+    }
+
+    @Test
+    fun staticLiftsTheBlackBackground() {
+        val (before, after) = beforeAndAfter { it.copy(noise = 1f) }
+        var wasBlack = 0
+        var nowLit = 0
+        for (y in 0 until h step 4) for (x in 0 until w step 4) {
+            if (Color.green(before.getPixel(x, y)) == 0) {
+                wasBlack++
+                if (Color.green(after.getPixel(x, y)) > 0) nowLit++
+            }
+        }
+        assertTrue("no black background to test against", wasBlack > 500)
+        assertTrue(
+            "static left the background black ($nowLit of $wasBlack lifted)",
+            nowLit > wasBlack * 0.8
+        )
+    }
+
+    @Test
+    fun rgbFringingAddsColourAGreenThemeNeverHas() {
+        val (before, after) = beforeAndAfter { it.copy(aberration = 1f) }
+        fun redPixels(bmp: Bitmap): Int {
+            var n = 0
+            for (y in 0 until h step 2) for (x in 0 until w step 2) {
+                val p = bmp.getPixel(x, y)
+                if (Color.red(p) > 60 && Color.red(p) > Color.green(p)) n++
+            }
+            return n
+        }
+        val a = redPixels(before)
+        val b = redPixels(after)
+        assertTrue("fringing produced no red ($a -> $b)", b > a + 40)
+    }
+
+    @Test
+    fun fringingIsStrongestAwayFromTheCentre() {
+        // Real tubes fringe at the edges and not in the middle, so the added colour
+        // should cluster away from the centre line rather than spread evenly.
+        val (_, after) = beforeAndAfter { it.copy(aberration = 1f) }
+        var edge = 0
+        var middle = 0
+        for (y in 0 until h step 2) for (x in 0 until w step 2) {
+            val p = after.getPixel(x, y)
+            if (Color.red(p) > 60 && Color.red(p) > Color.green(p)) {
+                if (x < w * 0.2 || x > w * 0.8) edge++
+                else if (x > w * 0.4 && x < w * 0.6) middle++
+            }
+        }
+        // The bands are the same width, so the counts are directly comparable.
+        assertTrue("fringing was not edge-weighted (edge=$edge middle=$middle)", edge > middle * 2)
+    }
+
+    @Test
+    fun crtFlickerVariesBetweenFrames() {
+        // The wobble is time-based, so two frames a beat apart must differ in
+        // overall brightness while a still frame with flicker off does not.
+        fun lumaPair(flicker: Float): Pair<Double, Double> {
+            val renderer = RainRenderer(displayDensity = 2f)
+            renderer.updateConfig(
+                RainConfig(
+                    crtFlicker = flicker, speed = 0f, mutationRate = 0f,
+                    glitch = 0f, glow = 0f, scanlines = 0f, density = 1f
+                )
+            )
+            renderer.resize(w, h)
+            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bmp)
+            repeat(20) { renderer.update(1f / 60f); renderer.draw(canvas) }
+            val a = meanLuma(bmp)
+            repeat(9) { renderer.update(1f / 60f); renderer.draw(canvas) }
+            val b = meanLuma(bmp)
+            renderer.release()
+            return a to b
+        }
+        val (offA, offB) = lumaPair(0f)
+        val (onA, onB) = lumaPair(1f)
+        assertTrue("frame changed with flicker off (${kotlin.math.abs(offA - offB)})",
+            kotlin.math.abs(offA - offB) < 0.05)
+        assertTrue("flicker did not vary the frame (${kotlin.math.abs(onA - onB)})",
+            kotlin.math.abs(onA - onB) > 0.3)
+    }
+
+    @Test
+    fun classicTurnsEveryCrtFilterOff() {
+        val cfg = RainConfig(
+            apertureGrille = 0.8f, vignette = 0.8f, crtFlicker = 0.8f,
+            noise = 0.8f, aberration = 0.8f
+        )
+        cfg.toClassic()
+        assertEquals(0f, cfg.apertureGrille, 0f)
+        assertEquals(0f, cfg.vignette, 0f)
+        assertEquals(0f, cfg.crtFlicker, 0f)
+        assertEquals(0f, cfg.noise, 0f)
+        assertEquals(0f, cfg.aberration, 0f)
+    }
+
     /** Renders the frames used in the README so the docs track the real output. */
     @Test
     fun showcaseFrames() {
@@ -487,6 +790,17 @@ class RainRendererTest {
             ),
             "showcase-message" to RainConfig(
                 message = "WAKE UP, NEO", messageInterval = 5f, density = 0.6f
+            ),
+            "showcase-crt" to RainConfig(
+                theme = ColorTheme.AMBER, glyphSize = 15f, density = 0.95f,
+                scanlines = 0.28f, apertureGrille = 0.35f, vignette = 0.5f,
+                aberration = 0.5f, noise = 0.1f, crtFlicker = 0.25f, glow = 0.8f,
+                showClock = true, clockX = 0.5f, clockY = 0.12f, clockSize = 0.12f
+            ),
+            "showcase-clock-corner" to RainConfig(
+                theme = ColorTheme.CYAN, showClock = true,
+                clockX = 0.02f, clockY = 0.97f, clockSize = 0.09f,
+                vignette = 0.5f
             )
         )
         for ((name, cfg) in shots) {

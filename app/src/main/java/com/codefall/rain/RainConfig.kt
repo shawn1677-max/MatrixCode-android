@@ -64,12 +64,28 @@ data class RainConfig(
     var glow: Float = 0.6f,
     /** CRT scanline overlay strength, 0 .. 1. */
     var scanlines: Float = 0.25f,
+    /** Vertical phosphor stripe mask, the Trinitron look, 0 .. 1. */
+    var apertureGrille: Float = 0f,
+    /** Darkening toward the corners, as a curved tube would, 0 .. 1. */
+    var vignette: Float = 0f,
+    /** Brightness wobble plus a slow rolling refresh bar, 0 .. 1. */
+    var crtFlicker: Float = 0f,
+    /** Analog static crawling over the picture, 0 .. 1. */
+    var noise: Float = 0f,
+    /** RGB fringing, strongest toward the edges as on a real tube, 0 .. 1. */
+    var aberration: Float = 0f,
     /** Chance per frame of a column flickering out, 0 .. 1. */
     var glitch: Float = 0.15f,
     /** Draw a clock over the rain. */
     var showClock: Boolean = false,
     /** 24-hour clock instead of 12-hour. */
     var clock24h: Boolean = true,
+    /** Clock position across the screen, 0 = left edge, 1 = right edge. */
+    var clockX: Float = 0.5f,
+    /** Clock position down the screen, 0 = top edge, 1 = bottom edge. */
+    var clockY: Float = 0.5f,
+    /** Clock height as a fraction of the screen's shorter side, 0.05 .. 0.35. */
+    var clockSize: Float = 0.17f,
     /** Keep the screen on while the screensaver is showing. */
     var keepScreenOn: Boolean = true,
     /** Flip glyphs horizontally, the way the film's code was shot. */
@@ -106,6 +122,11 @@ data class RainConfig(
         mirrorGlyphs = false
         settleTrail = false
         tiltEnabled = false
+        apertureGrille = 0f
+        vignette = 0f
+        crtFlicker = 0f
+        noise = 0f
+        aberration = 0f
     }
 
     fun randomize() {
@@ -121,6 +142,12 @@ data class RainConfig(
         glitch = Random.nextDouble(0.0, 0.5).toFloat()
         mirrorGlyphs = Random.nextBoolean()
         settleTrail = Random.nextBoolean()
+        // Screen filters read as grime, so keep them sparse and gentle when rolled.
+        apertureGrille = if (Random.nextFloat() < 0.4f) Random.nextDouble(0.1, 0.7).toFloat() else 0f
+        vignette = if (Random.nextFloat() < 0.5f) Random.nextDouble(0.1, 0.8).toFloat() else 0f
+        crtFlicker = if (Random.nextFloat() < 0.35f) Random.nextDouble(0.1, 0.6).toFloat() else 0f
+        noise = if (Random.nextFloat() < 0.35f) Random.nextDouble(0.05, 0.45).toFloat() else 0f
+        aberration = if (Random.nextFloat() < 0.4f) Random.nextDouble(0.1, 0.7).toFloat() else 0f
     }
 
     companion object {
@@ -139,9 +166,17 @@ data class RainConfig(
                 mutationRate = p.getFloat("mutationRate", d.mutationRate),
                 glow = p.getFloat("glow", d.glow),
                 scanlines = p.getFloat("scanlines", d.scanlines),
+                apertureGrille = p.getFloat("apertureGrille", d.apertureGrille),
+                vignette = p.getFloat("vignette", d.vignette),
+                crtFlicker = p.getFloat("crtFlicker", d.crtFlicker),
+                noise = p.getFloat("noise", d.noise),
+                aberration = p.getFloat("aberration", d.aberration),
                 glitch = p.getFloat("glitch", d.glitch),
                 showClock = p.getBoolean("showClock", d.showClock),
                 clock24h = p.getBoolean("clock24h", d.clock24h),
+                clockX = p.getFloat("clockX", d.clockX),
+                clockY = p.getFloat("clockY", d.clockY),
+                clockSize = p.getFloat("clockSize", d.clockSize),
                 keepScreenOn = p.getBoolean("keepScreenOn", d.keepScreenOn),
                 mirrorGlyphs = p.getBoolean("mirrorGlyphs", d.mirrorGlyphs),
                 settleTrail = p.getBoolean("settleTrail", d.settleTrail),
@@ -167,9 +202,17 @@ data class RainConfig(
             .putFloat("mutationRate", mutationRate)
             .putFloat("glow", glow)
             .putFloat("scanlines", scanlines)
+            .putFloat("apertureGrille", apertureGrille)
+            .putFloat("vignette", vignette)
+            .putFloat("crtFlicker", crtFlicker)
+            .putFloat("noise", noise)
+            .putFloat("aberration", aberration)
             .putFloat("glitch", glitch)
             .putBoolean("showClock", showClock)
             .putBoolean("clock24h", clock24h)
+            .putFloat("clockX", clockX)
+            .putFloat("clockY", clockY)
+            .putFloat("clockSize", clockSize)
             .putBoolean("keepScreenOn", keepScreenOn)
             .putBoolean("mirrorGlyphs", mirrorGlyphs)
             .putBoolean("settleTrail", settleTrail)

@@ -11,6 +11,15 @@
     <string name="section_look">APPEARANCE</string>
     <string name="section_motion">MOTION</string>
     <string name="section_fx">EFFECTS</string>
+    <string name="section_crt">CRT SCREEN</string>
+    <string name="aperture">Aperture grille</string>
+    <string name="vignette">Vignette</string>
+    <string name="crt_flicker">Flicker &amp; roll</string>
+    <string name="noise">Static</string>
+    <string name="aberration">RGB fringing</string>
+    <string name="clock_size">Clock size</string>
+    <string name="clock_x">Clock position \u2194</string>
+    <string name="clock_y">Clock position \u2195</string>
     <string name="section_saver">SCREENSAVER</string>
     <string name="section_message">SECRET MESSAGE</string>
     <string name="color_theme">Color</string>

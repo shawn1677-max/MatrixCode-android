@@ -79,6 +79,14 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Reads better than a bare percentage for a position: names the ends and centre. */
+    private fun positionLabel(v: Float, low: String, high: String): String = when {
+        v < 0.02f -> low
+        v > 0.98f -> high
+        v > 0.48f && v < 0.52f -> "Centre"
+        else -> "%d%%".format((v * 100).roundToInt())
+    }
+
     private fun refreshAll() {
         refreshers.forEach { it() }
         preview.setConfig(config)
@@ -160,14 +168,40 @@ class MainActivity : Activity() {
         ) { config.glow = it; onConfigChanged() }
 
         addSlider(
+            getString(R.string.glitch), 0f, 1f,
+            { config.glitch }, { "%d%%".format((it * 100).roundToInt()) }
+        ) { config.glitch = it; onConfigChanged() }
+
+        addSection(getString(R.string.section_crt))
+        addSlider(
             getString(R.string.scanlines), 0f, 1f,
             { config.scanlines }, { "%d%%".format((it * 100).roundToInt()) }
         ) { config.scanlines = it; onConfigChanged() }
 
         addSlider(
-            getString(R.string.glitch), 0f, 1f,
-            { config.glitch }, { "%d%%".format((it * 100).roundToInt()) }
-        ) { config.glitch = it; onConfigChanged() }
+            getString(R.string.aperture), 0f, 1f,
+            { config.apertureGrille }, { "%d%%".format((it * 100).roundToInt()) }
+        ) { config.apertureGrille = it; onConfigChanged() }
+
+        addSlider(
+            getString(R.string.vignette), 0f, 1f,
+            { config.vignette }, { "%d%%".format((it * 100).roundToInt()) }
+        ) { config.vignette = it; onConfigChanged() }
+
+        addSlider(
+            getString(R.string.crt_flicker), 0f, 1f,
+            { config.crtFlicker }, { "%d%%".format((it * 100).roundToInt()) }
+        ) { config.crtFlicker = it; onConfigChanged() }
+
+        addSlider(
+            getString(R.string.noise), 0f, 1f,
+            { config.noise }, { "%d%%".format((it * 100).roundToInt()) }
+        ) { config.noise = it; onConfigChanged() }
+
+        addSlider(
+            getString(R.string.aberration), 0f, 1f,
+            { config.aberration }, { "%d%%".format((it * 100).roundToInt()) }
+        ) { config.aberration = it; onConfigChanged() }
 
         addSection(getString(R.string.section_message))
         addTextField(
@@ -188,6 +222,21 @@ class MainActivity : Activity() {
         addSwitch(getString(R.string.clock_24h), { config.clock24h }) {
             config.clock24h = it; onConfigChanged()
         }
+
+        addSlider(
+            getString(R.string.clock_size), 0.05f, 0.35f,
+            { config.clockSize }, { "%d%%".format((it * 100).roundToInt()) }
+        ) { config.clockSize = it; onConfigChanged() }
+
+        addSlider(
+            getString(R.string.clock_x), 0f, 1f,
+            { config.clockX }, { positionLabel(it, "Left", "Right") }
+        ) { config.clockX = it; onConfigChanged() }
+
+        addSlider(
+            getString(R.string.clock_y), 0f, 1f,
+            { config.clockY }, { positionLabel(it, "Top", "Bottom") }
+        ) { config.clockY = it; onConfigChanged() }
         addSwitch(getString(R.string.keep_screen_on), { config.keepScreenOn }) {
             config.keepScreenOn = it; onConfigChanged()
         }

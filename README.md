@@ -11,6 +11,7 @@ No permissions, no network access, no ads, no trackers.
   <img src="docs/preview-tilt.png" width="30%" alt="Rain leaning under device tilt" />
 </p>
 <p align="center">
+  <img src="docs/preview-crt.png" width="30%" alt="CRT filters with the clock moved to the top" />
   <img src="docs/preview-amber.png" width="30%" alt="Amber CRT, clock on" />
   <img src="docs/preview-rainbow.png" width="30%" alt="Rainbow" />
 </p>
@@ -90,12 +91,28 @@ drawn after the mirror flip is undone, so it always reads forwards.
 | Option | Range | What it does |
 | --- | --- | --- |
 | Glow | 0–100% | Bloom halo around the leading glyph |
-| CRT scanlines | 0–100% | Horizontal scanline overlay |
 | Glitch | 0–100% | Chance of a column blinking out for a beat |
+
+**CRT screen**
+
+Six filters that stack, each changing the look a different way. All default to
+off except scanlines.
+
+| Option | Range | What it does |
+| --- | --- | --- |
+| Scanlines | 0–100% | Horizontal line structure |
+| Aperture grille | 0–100% | Vertical phosphor stripes, the Trinitron look |
+| Vignette | 0–100% | Darkening toward the corners, as a curved tube would |
+| Flicker & roll | 0–100% | Unsteady brightness plus a slow rolling refresh bar |
+| Static | 0–100% | Analog snow crawling over the picture |
+| RGB fringing | 0–100% | Colour separation, strongest toward the edges |
 
 **Screensaver**
 
-Show clock (with a 12/24-hour toggle) and keep-screen-awake.
+Show clock, with a 12/24-hour toggle, a size slider, and horizontal and vertical
+position sliders that place it anywhere on screen — the sliders sweep the area
+where the clock still fits whole, so either end parks it against that edge
+rather than pushing digits out of frame. Plus keep-screen-awake.
 
 `RANDOMIZE` rolls every visual setting at once — good for finding looks you
 wouldn't have dialled in by hand. `RESET` returns the visuals to defaults but
@@ -130,6 +147,14 @@ strength setting: uncapped, a full tilt sheared each trail by more than a cell
 per row and smeared the streaks across the whole screen. Drift and slant share
 one coefficient, since a trail marks where its own head has been — if the two
 disagree, the streak detaches from its head.
+
+The CRT filters are cached shaders and sprites painted over the finished frame,
+so each costs one full-screen draw rather than per-pixel work. The aperture
+grille multiplies rather than draws over: tinted stripes composited onto a black
+background would *add* light and brighten the picture, which is the opposite of
+what a mask does. RGB fringing is the exception — it is drawn per glyph, and only
+on the heads and the clock, since tripling every trail glyph would not pay for
+itself.
 
 `RenderLoop` is a plain render thread that drives the renderer onto a
 `SurfaceHolder`, using `lockHardwareCanvas` where available.

@@ -37,9 +37,9 @@ class UiTest {
         val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
         val controls = controlsOf(activity)
 
-        // Two spinners (colour, character set), ten sliders, six switches.
+        // Two spinners (colour, character set), eighteen sliders, six switches.
         assertEquals(2, collect(controls, Spinner::class.java).size)
-        assertEquals(10, collect(controls, SeekBar::class.java).size)
+        assertEquals(18, collect(controls, SeekBar::class.java).size)
         assertEquals(6, collect(controls, Switch::class.java).size)
         assertEquals(1, collect(controls, android.widget.EditText::class.java).size)
 

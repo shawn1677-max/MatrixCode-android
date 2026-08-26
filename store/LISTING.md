@@ -53,8 +53,11 @@ FEATURES
   phone you tip down.
 - Secret messages: type any text and the code periodically resolves into it,
   holds for a moment, then dissolves back into noise.
-- Optional clock, in 12 or 24 hour format.
-- CRT scanlines, glow and glitch effects, each independently adjustable.
+- Optional clock in 12 or 24 hour format, resizable and positionable anywhere
+  on screen.
+- Six stacking CRT screen filters: scanlines, aperture grille, vignette,
+  flicker and roll, static, and RGB fringing.
+- Glow and glitch effects, each independently adjustable.
 - Randomise button for looks you would not have dialled in by hand.
 
 PRIVACY

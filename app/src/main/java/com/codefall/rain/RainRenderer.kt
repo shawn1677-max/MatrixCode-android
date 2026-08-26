@@ -4,9 +4,12 @@ import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
+import android.graphics.PorterDuffXfermode
 import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.graphics.Typeface
@@ -88,6 +91,10 @@ class RainRenderer(private val displayDensity: Float) {
     }
     private val bloomPaint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val scrimPaint = Paint()
+    private val fringePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        typeface = Typeface.MONOSPACE
+        textAlign = Paint.Align.LEFT
+    }
     private val scanlinePaint = Paint()
     private val clockPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
@@ -102,6 +109,21 @@ class RainRenderer(private val displayDensity: Float) {
     private var bloomBitmap: Bitmap? = null
     private var scanlineShader: BitmapShader? = null
     private var scanlineBitmap: Bitmap? = null
+
+    // CRT screen filters. Each is a cached shader or sprite so a frame costs one
+    // full-screen draw rather than per-pixel work.
+    private val aperturePaint = Paint()
+    private var apertureBitmap: Bitmap? = null
+    private val vignettePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var vignetteShader: RadialGradient? = null
+    private val flickerPaint = Paint()
+    private val rollPaint = Paint()
+    private var rollShader: LinearGradient? = null
+    private val rollMatrix = Matrix()
+    private val noisePaint = Paint()
+    private var noiseBitmap: Bitmap? = null
+    private var noiseShader: BitmapShader? = null
+    private val noiseMatrix = Matrix()
     private val colorFilters = HashMap<Int, PorterDuffColorFilter>()
     private val hsv = FloatArray(3)
     private val scratch = CharArray(1)
@@ -135,6 +157,7 @@ class RainRenderer(private val displayDensity: Float) {
         width = w
         height = h
         rebuildGrid()
+        rebuildScreenFilters()
     }
 
     private fun applyPendingConfig() {
@@ -150,6 +173,7 @@ class RainRenderer(private val displayDensity: Float) {
             charsChanged || trailChanged || densityChanged -> reseedColumns()
         }
         rebuildScanlines()
+        rebuildScreenFilters()
     }
 
     private fun rebuildGrid() {
@@ -166,6 +190,7 @@ class RainRenderer(private val displayDensity: Float) {
         for (i in columns.indices) spawn(columns[i], i, initial = true)
         rebuildBloom(sizePx)
         rebuildScanlines()
+        rebuildScreenFilters()
     }
 
     private fun reseedColumns() {
@@ -253,6 +278,134 @@ class RainRenderer(private val displayDensity: Float) {
         scanlineBitmap = bmp
         scanlineShader = BitmapShader(bmp, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
         scanlinePaint.shader = scanlineShader
+    }
+
+    /** Builds the cached sprites and shaders behind the CRT screen filters. */
+    private fun rebuildScreenFilters() {
+        if (width <= 0 || height <= 0) return
+        val cfg = config
+
+        // Aperture grille: one tile of vertical phosphor stripes, tiled across.
+        apertureBitmap?.recycle()
+        apertureBitmap = null
+        if (cfg.apertureGrille > 0.01f) {
+            val stripe = max(1, displayDensity.toInt())
+            val tile = Bitmap.createBitmap(stripe * 3, 1, Bitmap.Config.ARGB_8888)
+            val c = Canvas(tile)
+            val p = Paint()
+            // A grille has to MULTIPLY, not draw over: each stripe passes its own
+            // channel and holds the other two back. Drawing tinted stripes on top
+            // would add light to the black background and brighten the picture,
+            // which is the opposite of what a mask does.
+            val low = (255 - cfg.apertureGrille * 190f).toInt().coerceIn(0, 255)
+            p.color = Color.rgb(255, low, low)
+            c.drawRect(0f, 0f, stripe.toFloat(), 1f, p)
+            p.color = Color.rgb(low, 255, low)
+            c.drawRect(stripe.toFloat(), 0f, stripe * 2f, 1f, p)
+            p.color = Color.rgb(low, low, 255)
+            c.drawRect(stripe * 2f, 0f, stripe * 3f, 1f, p)
+            apertureBitmap = tile
+            aperturePaint.shader = BitmapShader(tile, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+            aperturePaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
+        } else {
+            aperturePaint.shader = null
+            aperturePaint.xfermode = null
+        }
+
+        // Vignette: a circular gradient squashed to the screen's aspect, so the
+        // falloff follows the edges instead of bulging on a tall display.
+        if (cfg.vignette > 0.01f) {
+            val r = width / 2f
+            val g = RadialGradient(
+                width / 2f, height / 2f, max(1f, r),
+                intArrayOf(0x00000000, 0x00000000, (cfg.vignette * 235f).toInt().coerceIn(0, 255) shl 24),
+                floatArrayOf(0f, 0.45f, 1f),
+                Shader.TileMode.CLAMP
+            )
+            val m = Matrix()
+            m.setScale(1f, height.toFloat() / width, width / 2f, height / 2f)
+            g.setLocalMatrix(m)
+            vignetteShader = g
+            vignettePaint.shader = g
+        } else {
+            vignetteShader = null
+            vignettePaint.shader = null
+        }
+
+        // Rolling refresh bar: a soft band swept down the screen each cycle.
+        if (cfg.crtFlicker > 0.01f) {
+            val bandHeight = max(2f, height * 0.22f)
+            val peak = (cfg.crtFlicker * 46f).toInt().coerceIn(0, 255)
+            val g = LinearGradient(
+                0f, 0f, 0f, bandHeight,
+                intArrayOf(0x00FFFFFF, peak shl 24 or 0xFFFFFF, 0x00FFFFFF),
+                floatArrayOf(0f, 0.5f, 1f),
+                Shader.TileMode.CLAMP
+            )
+            rollShader = g
+            rollPaint.shader = g
+        } else {
+            rollShader = null
+            rollPaint.shader = null
+        }
+
+        // Static: one noise tile, crawled by moving its matrix rather than redrawing.
+        if (cfg.noise > 0.01f) {
+            if (noiseBitmap == null) {
+                val n = 96
+                val px = IntArray(n * n)
+                for (i in px.indices) {
+                    val v = Random.nextInt(120, 256)
+                    px[i] = (0xFF shl 24) or (v shl 16) or (v shl 8) or v
+                }
+                val bmp = Bitmap.createBitmap(px, n, n, Bitmap.Config.ARGB_8888)
+                noiseBitmap = bmp
+                noiseShader = BitmapShader(bmp, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+            }
+            noisePaint.shader = noiseShader
+        } else {
+            noisePaint.shader = null
+        }
+    }
+
+    /** Paints every screen filter over the finished frame, in tube order. */
+    private fun drawScreenFilters(canvas: Canvas) {
+        val cfg = config
+        val w = width.toFloat()
+        val h = height.toFloat()
+
+        scanlineShader?.let { canvas.drawRect(0f, 0f, w, h, scanlinePaint) }
+        if (aperturePaint.shader != null) canvas.drawRect(0f, 0f, w, h, aperturePaint)
+        if (vignettePaint.shader != null) canvas.drawRect(0f, 0f, w, h, vignettePaint)
+
+        if (cfg.crtFlicker > 0.01f) {
+            // Two loosely-related sine terms read as an unsteady supply rather than
+            // a pulse, which a single sine always does.
+            val wobble = (kotlin.math.sin(elapsed * 11.3f) * 0.5f +
+                kotlin.math.sin(elapsed * 27.9f) * 0.5f)
+            val dim = (cfg.crtFlicker * 26f * (0.5f + 0.5f * wobble)).toInt().coerceIn(0, 255)
+            if (dim > 0) {
+                flickerPaint.color = Color.argb(dim, 0, 0, 0)
+                canvas.drawRect(0f, 0f, w, h, flickerPaint)
+            }
+            rollShader?.let { shader ->
+                val period = 7f
+                val y = ((elapsed % period) / period) * (h + h * 0.22f) - h * 0.22f
+                rollMatrix.setTranslate(0f, y)
+                shader.setLocalMatrix(rollMatrix)
+                canvas.drawRect(0f, 0f, w, h, rollPaint)
+            }
+        }
+
+        if (noisePaint.shader != null) {
+            noiseMatrix.setTranslate(
+                Random.nextInt(0, 96).toFloat(),
+                Random.nextInt(0, 96).toFloat()
+            )
+            noiseShader?.setLocalMatrix(noiseMatrix)
+            noisePaint.alpha = (cfg.noise * 60f).toInt().coerceIn(0, 255)
+            canvas.drawRect(0f, 0f, w, h, noisePaint)
+        }
     }
 
     private fun filterFor(color: Int): PorterDuffColorFilter =
@@ -444,6 +597,7 @@ class RainRenderer(private val displayDensity: Float) {
                         )
                         canvas.drawBitmap(bloom, null, bloomRect, bloomPaint)
                     }
+                    drawFringed(canvas, x, y, alpha, mirror)
                     glyphPaint.color = colHead
                     glyphPaint.alpha = alpha
                     canvas.drawText(scratch, 0, 1, x, y, glyphPaint)
@@ -467,9 +621,41 @@ class RainRenderer(private val displayDensity: Float) {
         if (revealElapsed >= 0f) drawMessage(canvas, overlayColor)
         if (cfg.showClock) drawClock(canvas, overlayColor)
 
-        scanlineShader?.let {
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), scanlinePaint)
-        }
+        drawScreenFilters(canvas)
+    }
+
+    /**
+     * How far the red and blue channels separate at this x. Real tubes fringe hardest
+     * at the edges and not at all dead centre, so the split scales with distance from
+     * the middle. Returns 0 when aberration is off.
+     */
+    private fun aberrationOffset(x: Float, mirrored: Boolean): Float {
+        val amount = config.aberration
+        if (amount <= 0.01f || width <= 0) return 0f
+        val centre = width / 2f
+        val radial = ((x - centre) / centre).coerceIn(-1f, 1f)
+        val offset = amount * cellW * 0.30f * radial
+        return if (mirrored) -offset else offset
+    }
+
+    /** Draws one glyph as separated red and blue copies either side of the original. */
+    private fun drawFringed(
+        canvas: Canvas,
+        x: Float,
+        y: Float,
+        alpha: Int,
+        mirrored: Boolean
+    ) {
+        val offset = aberrationOffset(x, mirrored)
+        if (offset == 0f) return
+        val a = (alpha * 0.45f).toInt().coerceIn(0, 255)
+        fringePaint.textSize = glyphPaint.textSize
+        fringePaint.color = Color.RED
+        fringePaint.alpha = a
+        canvas.drawText(scratch, 0, 1, x - offset, y, fringePaint)
+        fringePaint.color = Color.CYAN
+        fringePaint.alpha = a
+        canvas.drawText(scratch, 0, 1, x + offset, y, fringePaint)
     }
 
     /**
@@ -527,13 +713,34 @@ class RainRenderer(private val displayDensity: Float) {
             if (!config.clock24h) append(if (hour24 < 12) " AM" else " PM")
         }
 
-        val size = min(width, height) * 0.17f
+        val size = min(width, height) * config.clockSize.coerceIn(0.05f, 0.35f)
         clockPaint.textSize = size
         clockGlowPaint.textSize = size
         clockGlowPaint.strokeWidth = max(1f, size * 0.02f)
 
-        val cx = width / 2f
-        val cy = height / 2f + size * 0.34f
+        // clockX/clockY sweep the clock across the area where it still fits whole, so
+        // dragging a slider to either end parks it against that edge rather than
+        // pushing half the digits off screen.
+        val margin = size * 0.22f
+        val halfText = clockPaint.measureText(text) / 2f
+        val minX = halfText + margin
+        val maxX = width - halfText - margin
+        val cx = if (minX >= maxX) width / 2f else minX + (maxX - minX) * config.clockX
+
+        val fm = clockPaint.fontMetrics
+        val minY = -fm.top + margin
+        val maxY = height - fm.bottom - margin
+        val cy = if (minY >= maxY) height / 2f else minY + (maxY - minY) * config.clockY
+
+        val fringe = aberrationOffset(cx, mirrored = false)
+        if (fringe != 0f) {
+            clockPaint.color = Color.RED
+            clockPaint.alpha = 90
+            canvas.drawText(text, cx - fringe, cy, clockPaint)
+            clockPaint.color = Color.CYAN
+            clockPaint.alpha = 90
+            canvas.drawText(text, cx + fringe, cy, clockPaint)
+        }
 
         clockGlowPaint.color = color
         clockGlowPaint.alpha = (config.glow * 90f).toInt().coerceIn(20, 255)
