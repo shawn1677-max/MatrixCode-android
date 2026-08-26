@@ -38,9 +38,14 @@ class MatrixRenderer(private val displayDensity: Float) {
         var respawnDelay = 0f
     }
 
-    @Volatile
     private var config: MatrixConfig = MatrixConfig()
+
+    @Volatile
     private var pendingConfig: MatrixConfig? = null
+
+    /** Surface size packed as (w shl 32) or h, published by whichever thread resizes. */
+    @Volatile
+    private var pendingSize: Long = 0
 
     private var width = 0
     private var height = 0
@@ -87,6 +92,16 @@ class MatrixRenderer(private val displayDensity: Float) {
 
     fun resize(w: Int, h: Int) {
         if (w <= 0 || h <= 0) return
+        pendingSize = (w.toLong() shl 32) or h.toLong()
+    }
+
+    private fun applyPendingSize() {
+        val packed = pendingSize
+        if (packed == 0L) return
+        pendingSize = 0
+        val w = (packed ushr 32).toInt()
+        val h = (packed and 0xFFFFFFFFL).toInt()
+        if (w == width && h == height) return
         width = w
         height = h
         rebuildGrid()
@@ -214,6 +229,7 @@ class MatrixRenderer(private val displayDensity: Float) {
 
     /** Advance the simulation by [dt] seconds. */
     fun update(dt: Float) {
+        applyPendingSize()
         applyPendingConfig()
         if (columns.isEmpty()) return
         val step = dt.coerceIn(0f, 0.1f)

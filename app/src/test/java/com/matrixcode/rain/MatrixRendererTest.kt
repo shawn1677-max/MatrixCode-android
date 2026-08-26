@@ -128,6 +128,33 @@ class MatrixRendererTest {
     }
 
     @Test
+    fun resizingMidFlightRebuildsTheGrid() {
+        // What happens on rotation: the surface changes size under a running loop.
+        val renderer = MatrixRenderer(displayDensity = 2f)
+        renderer.updateConfig(MatrixConfig())
+        renderer.resize(w, h)
+
+        val portrait = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val portraitCanvas = Canvas(portrait)
+        repeat(60) { renderer.update(1f / 60f); renderer.draw(portraitCanvas) }
+        assertTrue("portrait blank", litPixelRatio(portrait) > 0.005)
+
+        renderer.resize(h, w)
+        val landscape = Bitmap.createBitmap(h, w, Bitmap.Config.ARGB_8888)
+        val landscapeCanvas = Canvas(landscape)
+        repeat(120) { renderer.update(1f / 60f); renderer.draw(landscapeCanvas) }
+        assertTrue("landscape blank after resize", litPixelRatio(landscape) > 0.005)
+
+        // Rain must reach the new right-hand edge, not just the old portrait width.
+        var litBeyondOldWidth = 0
+        for (y in 0 until w step 2) for (x in this.w until h step 2) {
+            if (Color.green(landscape.getPixel(x, y)) > 30) litBeyondOldWidth++
+        }
+        assertTrue("grid did not widen on resize", litBeyondOldWidth > 20)
+        renderer.release()
+    }
+
+    @Test
     fun extremeSettingsDoNotCrash() {
         val extremes = listOf(
             MatrixConfig(speed = 0.1f, glyphSize = 10f, density = 1f, trailLength = 2f),
