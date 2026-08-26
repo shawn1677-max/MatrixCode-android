@@ -1,4 +1,4 @@
-package com.matrixcode.rain
+package com.codefall.rain
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -17,19 +17,19 @@ import kotlin.math.abs
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
-class MatrixRendererTest {
+class RainRendererTest {
 
     private val w = 720
     private val h = 1280
-    private val outDir = File(System.getProperty("matrix.frameDir") ?: "build/frames")
+    private val outDir = File(System.getProperty("codefall.frameDir") ?: "build/frames")
 
     private fun renderFrames(
-        config: MatrixConfig,
+        config: RainConfig,
         frames: Int = 90,
         capture: Set<Int> = setOf(89),
         namePrefix: String? = null
     ): Bitmap {
-        val renderer = MatrixRenderer(displayDensity = 2f)
+        val renderer = RainRenderer(displayDensity = 2f)
         renderer.updateConfig(config)
         renderer.resize(w, h)
 
@@ -64,7 +64,7 @@ class MatrixRendererTest {
 
     @Test
     fun defaultRainProducesVisibleGlyphs() {
-        val bmp = renderFrames(MatrixConfig(), namePrefix = "default")
+        val bmp = renderFrames(RainConfig(), namePrefix = "default")
         val ratio = litPixelRatio(bmp)
         assertTrue("frame looks blank (lit=$ratio)", ratio > 0.004)
         assertTrue("frame looks washed out (lit=$ratio)", ratio < 0.75)
@@ -73,7 +73,7 @@ class MatrixRendererTest {
     @Test
     fun rainSpansTheFullHeight() {
         // Sample the top and bottom fifths: after a couple of seconds both should have rain.
-        val bmp = renderFrames(MatrixConfig(speed = 2f), frames = 180)
+        val bmp = renderFrames(RainConfig(speed = 2f), frames = 180)
         fun litInBand(y0: Int, y1: Int): Int {
             var lit = 0
             for (y in y0 until y1 step 2) for (x in 0 until w step 2) {
@@ -88,8 +88,8 @@ class MatrixRendererTest {
 
     @Test
     fun themesChangeTheDominantColor() {
-        val greenBmp = renderFrames(MatrixConfig(theme = ColorTheme.MATRIX_GREEN, glitch = 0f))
-        val redBmp = renderFrames(MatrixConfig(theme = ColorTheme.CRIMSON, glitch = 0f))
+        val greenBmp = renderFrames(RainConfig(theme = ColorTheme.CLASSIC_GREEN, glitch = 0f))
+        val redBmp = renderFrames(RainConfig(theme = ColorTheme.CRIMSON, glitch = 0f))
 
         fun channelTotals(b: Bitmap): Triple<Long, Long, Long> {
             var r = 0L; var g = 0L; var bl = 0L
@@ -110,7 +110,7 @@ class MatrixRendererTest {
     fun everyThemeAndGlyphSetRendersAFrame() {
         for (theme in ColorTheme.entries) {
             val bmp = renderFrames(
-                MatrixConfig(theme = theme, showClock = true),
+                RainConfig(theme = theme, showClock = true),
                 frames = 60,
                 capture = setOf(59),
                 namePrefix = "theme-${theme.name.lowercase()}"
@@ -119,7 +119,7 @@ class MatrixRendererTest {
         }
         for (set in GlyphSet.entries) {
             val bmp = renderFrames(
-                MatrixConfig(glyphSet = set),
+                RainConfig(glyphSet = set),
                 frames = 60,
                 capture = setOf(59),
                 namePrefix = "glyphs-${set.name.lowercase()}"
@@ -131,8 +131,8 @@ class MatrixRendererTest {
     @Test
     fun resizingMidFlightRebuildsTheGrid() {
         // What happens on rotation: the surface changes size under a running loop.
-        val renderer = MatrixRenderer(displayDensity = 2f)
-        renderer.updateConfig(MatrixConfig())
+        val renderer = RainRenderer(displayDensity = 2f)
+        renderer.updateConfig(RainConfig())
         renderer.resize(w, h)
 
         val portrait = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
@@ -158,11 +158,11 @@ class MatrixRendererTest {
     @Test
     fun extremeSettingsDoNotCrash() {
         val extremes = listOf(
-            MatrixConfig(speed = 0.1f, glyphSize = 10f, density = 1f, trailLength = 2f),
-            MatrixConfig(speed = 4f, glyphSize = 36f, density = 0.2f, trailLength = 0.2f),
-            MatrixConfig(glow = 0f, scanlines = 0f, glitch = 0f, mutationRate = 0f),
-            MatrixConfig(glow = 1f, scanlines = 1f, glitch = 1f, mutationRate = 1f),
-            MatrixConfig(theme = ColorTheme.RAINBOW, showClock = true, clock24h = false)
+            RainConfig(speed = 0.1f, glyphSize = 10f, density = 1f, trailLength = 2f),
+            RainConfig(speed = 4f, glyphSize = 36f, density = 0.2f, trailLength = 0.2f),
+            RainConfig(glow = 0f, scanlines = 0f, glitch = 0f, mutationRate = 0f),
+            RainConfig(glow = 1f, scanlines = 1f, glitch = 1f, mutationRate = 1f),
+            RainConfig(theme = ColorTheme.RAINBOW, showClock = true, clock24h = false)
         )
         for ((i, cfg) in extremes.withIndex()) {
             renderFrames(cfg, frames = 45, capture = setOf(44), namePrefix = "extreme-$i")
@@ -204,9 +204,9 @@ class MatrixRendererTest {
         enabled: Boolean,
         mirror: Boolean = false
     ): Pair<Float, Float> {
-        val renderer = MatrixRenderer(displayDensity = 2f)
+        val renderer = RainRenderer(displayDensity = 2f)
         renderer.updateConfig(
-            MatrixConfig(
+            RainConfig(
                 tiltEnabled = enabled,
                 tiltStrength = 1f,
                 mirrorGlyphs = mirror,
@@ -284,9 +284,9 @@ class MatrixRendererTest {
      * deep tail, mid trail, and at/near the head.
      */
     private fun interFrameChurn(settle: Boolean): Triple<Double, Double, Double> {
-        val renderer = MatrixRenderer(displayDensity = 2f)
+        val renderer = RainRenderer(displayDensity = 2f)
         renderer.updateConfig(
-            MatrixConfig(
+            RainConfig(
                 settleTrail = settle,
                 mutationRate = 1f,
                 // Completely still, so mutation is the only thing that can move a pixel.
@@ -372,9 +372,9 @@ class MatrixRendererTest {
         // The message is painted after the mirror transform is undone, so the same
         // text lands in the same place whether or not the rain is flipped.
         fun messageBandWidth(mirror: Boolean): Int {
-            val renderer = MatrixRenderer(displayDensity = 2f)
+            val renderer = RainRenderer(displayDensity = 2f)
             renderer.updateConfig(
-                MatrixConfig(
+                RainConfig(
                     mirrorGlyphs = mirror,
                     message = "WAKE UP NEO",
                     messageInterval = 5f,
@@ -413,9 +413,9 @@ class MatrixRendererTest {
 
     @Test
     fun messageRevealAppearsAndThenClears() {
-        val renderer = MatrixRenderer(displayDensity = 2f)
+        val renderer = RainRenderer(displayDensity = 2f)
         renderer.updateConfig(
-            MatrixConfig(
+            RainConfig(
                 message = "FOLLOW THE WHITE RABBIT",
                 messageInterval = 5f,
                 density = 0.2f,
@@ -455,9 +455,9 @@ class MatrixRendererTest {
 
     @Test
     fun aBlankMessageNeverReveals() {
-        val renderer = MatrixRenderer(displayDensity = 2f)
+        val renderer = RainRenderer(displayDensity = 2f)
         renderer.updateConfig(
-            MatrixConfig(message = "   ", messageInterval = 5f, density = 0.2f, glow = 0f)
+            RainConfig(message = "   ", messageInterval = 5f, density = 0.2f, glow = 0f)
         )
         renderer.resize(w, h)
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
@@ -480,17 +480,17 @@ class MatrixRendererTest {
     @Test
     fun showcaseFrames() {
         val shots = listOf(
-            "showcase-mirrored" to MatrixConfig(mirrorGlyphs = true),
-            "showcase-classic" to MatrixConfig().apply { toClassic() },
-            "showcase-tilt" to MatrixConfig(
+            "showcase-mirrored" to RainConfig(mirrorGlyphs = true),
+            "showcase-classic" to RainConfig().apply { toClassic() },
+            "showcase-tilt" to RainConfig(
                 tiltEnabled = true, tiltStrength = 1f, speed = 1.4f
             ),
-            "showcase-message" to MatrixConfig(
+            "showcase-message" to RainConfig(
                 message = "WAKE UP, NEO", messageInterval = 5f, density = 0.6f
             )
         )
         for ((name, cfg) in shots) {
-            val renderer = MatrixRenderer(displayDensity = 2f)
+            val renderer = RainRenderer(displayDensity = 2f)
             renderer.updateConfig(cfg)
             renderer.resize(w, h)
             if (cfg.tiltEnabled) renderer.setTilt(0.8f)
@@ -509,8 +509,8 @@ class MatrixRendererTest {
 
     @Test
     fun liveConfigChangesAreAppliedWithoutRestart() {
-        val renderer = MatrixRenderer(displayDensity = 2f)
-        renderer.updateConfig(MatrixConfig())
+        val renderer = RainRenderer(displayDensity = 2f)
+        renderer.updateConfig(RainConfig())
         renderer.resize(w, h)
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
@@ -518,7 +518,7 @@ class MatrixRendererTest {
 
         // Change every grid-affecting knob mid-flight, as the settings screen does.
         renderer.updateConfig(
-            MatrixConfig(
+            RainConfig(
                 theme = ColorTheme.AMBER,
                 glyphSet = GlyphSet.BINARY,
                 glyphSize = 30f,

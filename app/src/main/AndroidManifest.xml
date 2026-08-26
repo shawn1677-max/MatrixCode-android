@@ -1,7 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!--
+      No permissions are declared on purpose. Keeping the screen awake uses
+      FLAG_KEEP_SCREEN_ON, which needs none, and the app has no network access.
+
+      androidx.core declares a self-scoped receiver permission in its own manifest.
+      Nothing here registers a broadcast receiver, so it is merged out to keep the
+      shipped manifest genuinely permission-free.
+    -->
+    <permission
+        android:name="${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        tools:node="remove" />
+    <uses-permission
+        android:name="${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        tools:node="remove" />
 
     <uses-feature
         android:name="android.software.live_wallpaper"
@@ -14,7 +28,7 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:hardwareAccelerated="true"
-        android:theme="@style/Theme.MatrixCode">
+        android:theme="@style/Theme.Codefall">
 
         <activity
             android:name=".MainActivity"
@@ -30,12 +44,12 @@
         <activity
             android:name=".ScreensaverActivity"
             android:exported="false"
-            android:theme="@style/Theme.MatrixCode.Fullscreen"
+            android:theme="@style/Theme.Codefall.Fullscreen"
             android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|uiMode"
             android:label="@string/screensaver_name" />
 
         <service
-            android:name=".MatrixDreamService"
+            android:name=".CodefallDreamService"
             android:exported="true"
             android:label="@string/screensaver_name"
             android:permission="android.permission.BIND_DREAM_SERVICE">
@@ -49,7 +63,7 @@
         </service>
 
         <service
-            android:name=".MatrixWallpaperService"
+            android:name=".CodefallWallpaperService"
             android:exported="true"
             android:label="@string/screensaver_name"
             android:permission="android.permission.BIND_WALLPAPER">

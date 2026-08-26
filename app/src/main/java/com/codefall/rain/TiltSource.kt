@@ -1,4 +1,4 @@
-package com.matrixcode.rain
+package com.codefall.rain
 
 import android.content.Context
 import android.hardware.Sensor

@@ -1,4 +1,4 @@
-package com.matrixcode.rain
+package com.codefall.rain
 
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
@@ -24,7 +24,7 @@ import kotlin.random.Random
  *
  * Not thread safe: drive it from a single render thread.
  */
-class MatrixRenderer(private val displayDensity: Float) {
+class RainRenderer(private val displayDensity: Float) {
 
     private class Column {
         var glyphs: CharArray = CharArray(0)
@@ -39,10 +39,10 @@ class MatrixRenderer(private val displayDensity: Float) {
         var driftX = 0f
     }
 
-    private var config: MatrixConfig = MatrixConfig()
+    private var config: RainConfig = RainConfig()
 
     @Volatile
-    private var pendingConfig: MatrixConfig? = null
+    private var pendingConfig: RainConfig? = null
 
     /** Surface size packed as (w shl 32) or h, published by whichever thread resizes. */
     @Volatile
@@ -116,7 +116,7 @@ class MatrixRenderer(private val displayDensity: Float) {
     }
 
     /** Swap in a new config; applied at the top of the next frame. */
-    fun updateConfig(newConfig: MatrixConfig) {
+    fun updateConfig(newConfig: RainConfig) {
         pendingConfig = newConfig.copyOf()
     }
 

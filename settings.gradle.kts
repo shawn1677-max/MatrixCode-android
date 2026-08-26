@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MatrixCode"
+rootProject.name = "Codefall"
 include(":app")

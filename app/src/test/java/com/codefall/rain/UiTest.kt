@@ -1,4 +1,4 @@
-package com.matrixcode.rain
+package com.codefall.rain
 
 import android.widget.Button
 import android.widget.LinearLayout
@@ -43,7 +43,7 @@ class UiTest {
         assertEquals(6, collect(controls, Switch::class.java).size)
         assertEquals(1, collect(controls, android.widget.EditText::class.java).size)
 
-        assertNotNull(activity.findViewById<MatrixSurfaceView>(R.id.preview))
+        assertNotNull(activity.findViewById<RainSurfaceView>(R.id.preview))
         assertNotNull(activity.findViewById<Button>(R.id.btnStart))
         assertNotNull(activity.findViewById<Button>(R.id.btnRandomize))
         assertNotNull(activity.findViewById<Button>(R.id.btnReset))
@@ -62,19 +62,19 @@ class UiTest {
         assertNotNull("speed slider has no listener", listener)
         listener!!.onProgressChanged(speed, 750, true)
 
-        val saved = MatrixConfig.load(activity)
+        val saved = RainConfig.load(activity)
         assertEquals(0.1f + (4f - 0.1f) * 0.75f, saved.speed, 0.01f)
     }
 
     @Test
     fun randomizeChangesSettingsAndKeepsThemInRange() {
         val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
-        val before = MatrixConfig.load(activity)
+        val before = RainConfig.load(activity)
 
         var differed = false
         repeat(8) {
             activity.findViewById<Button>(R.id.btnRandomize).performClick()
-            val after = MatrixConfig.load(activity)
+            val after = RainConfig.load(activity)
             if (after != before) differed = true
             assertTrue("speed out of range: ${after.speed}", after.speed in 0.1f..4f)
             assertTrue("glyph size out of range", after.glyphSize in 10f..36f)
@@ -88,15 +88,15 @@ class UiTest {
     @Test
     fun resetRestoresVisualDefaultsButKeepsScreensaverPrefs() {
         val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
-        MatrixConfig(theme = ColorTheme.GOLD, speed = 3.5f, showClock = true, clock24h = false)
+        RainConfig(theme = ColorTheme.GOLD, speed = 3.5f, showClock = true, clock24h = false)
             .save(activity)
 
         val fresh = Robolectric.buildActivity(MainActivity::class.java).setup().get()
         fresh.findViewById<Button>(R.id.btnReset).performClick()
 
-        val after = MatrixConfig.load(fresh)
-        assertEquals(MatrixConfig().theme, after.theme)
-        assertEquals(MatrixConfig().speed, after.speed, 0.001f)
+        val after = RainConfig.load(fresh)
+        assertEquals(RainConfig().theme, after.theme)
+        assertEquals(RainConfig().speed, after.speed, 0.001f)
         assertTrue("clock preference was clobbered by reset", after.showClock)
         assertEquals(false, after.clock24h)
     }
@@ -104,7 +104,7 @@ class UiTest {
     @Test
     fun classicButtonRestoresTheV1Look() {
         val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
-        MatrixConfig(
+        RainConfig(
             theme = ColorTheme.CRIMSON,
             speed = 3.9f,
             mirrorGlyphs = true,
@@ -117,8 +117,8 @@ class UiTest {
         val fresh = Robolectric.buildActivity(MainActivity::class.java).setup().get()
         fresh.findViewById<Button>(R.id.btnClassic).performClick()
 
-        val after = MatrixConfig.load(fresh)
-        val v1 = MatrixConfig()
+        val after = RainConfig.load(fresh)
+        val v1 = RainConfig()
         assertEquals(v1.theme, after.theme)
         assertEquals(v1.speed, after.speed, 0.001f)
         assertEquals(v1.glow, after.glow, 0.001f)
@@ -136,7 +136,7 @@ class UiTest {
         val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
         val field = collect(controlsOf(activity), android.widget.EditText::class.java).first()
         field.setText("KNOCK KNOCK")
-        assertEquals("KNOCK KNOCK", MatrixConfig.load(activity).message)
+        assertEquals("KNOCK KNOCK", RainConfig.load(activity).message)
     }
 
     @Test
@@ -157,7 +157,7 @@ class UiTest {
         val activity = controller.get()
         val root = activity.window.decorView as android.view.ViewGroup
 
-        assertTrue(collect(root, MatrixSurfaceView::class.java).isNotEmpty())
+        assertTrue(collect(root, RainSurfaceView::class.java).isNotEmpty())
         val hint = collect(root, TextView::class.java)
             .firstOrNull { it.text == activity.getString(R.string.exit_hint) }
         assertNotNull("no exit hint shown", hint)
@@ -169,18 +169,18 @@ class UiTest {
     fun daydreamAndWallpaperServicesAreDeclared() {
         val pm = org.robolectric.RuntimeEnvironment.getApplication().packageManager
         val info = pm.getPackageInfo(
-            "com.matrixcode.rain",
+            "com.codefall.rain",
             android.content.pm.PackageManager.GET_SERVICES
         )
         val names = info.services?.map { it.name }.orEmpty()
-        assertTrue("dream service missing", names.any { it.endsWith("MatrixDreamService") })
-        assertTrue("wallpaper service missing", names.any { it.endsWith("MatrixWallpaperService") })
+        assertTrue("dream service missing", names.any { it.endsWith("CodefallDreamService") })
+        assertTrue("wallpaper service missing", names.any { it.endsWith("CodefallWallpaperService") })
     }
 
     @Test
     fun configSurvivesASaveLoadRoundTrip() {
         val ctx = org.robolectric.RuntimeEnvironment.getApplication()
-        val cfg = MatrixConfig(
+        val cfg = RainConfig(
             theme = ColorTheme.PURPLE,
             glyphSet = GlyphSet.HEX,
             speed = 2.25f,
@@ -202,6 +202,6 @@ class UiTest {
             messageInterval = 42f
         )
         cfg.save(ctx)
-        assertEquals(cfg, MatrixConfig.load(ctx))
+        assertEquals(cfg, RainConfig.load(ctx))
     }
 }

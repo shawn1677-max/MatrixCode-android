@@ -1,19 +1,19 @@
-package com.matrixcode.rain
+package com.codefall.rain
 
 import android.graphics.Canvas
 import android.os.Build
 import android.view.SurfaceHolder
 
 /**
- * A plain render thread that drives a [MatrixRenderer] onto a [SurfaceHolder] at a
+ * A plain render thread that drives a [RainRenderer] onto a [SurfaceHolder] at a
  * target frame rate. Shared by the fullscreen screensaver, the daydream, the live
  * wallpaper and the settings preview.
  */
 class RenderLoop(
     private val holder: SurfaceHolder,
-    private val renderer: MatrixRenderer,
+    private val renderer: RainRenderer,
     private val targetFps: Int = 60
-) : Thread("MatrixRenderLoop") {
+) : Thread("CodefallRenderLoop") {
 
     @Volatile
     private var running = false

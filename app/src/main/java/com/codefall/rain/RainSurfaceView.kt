@@ -1,19 +1,19 @@
-package com.matrixcode.rain
+package com.codefall.rain
 
 import android.content.Context
 import android.util.AttributeSet
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 
-/** A [SurfaceView] that renders the Matrix rain. Use from an Activity or a preview. */
-class MatrixSurfaceView @JvmOverloads constructor(
+/** A [SurfaceView] that renders the falling-code rain. Use from an Activity or a preview. */
+class RainSurfaceView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : SurfaceView(context, attrs), SurfaceHolder.Callback {
 
-    private val renderer = MatrixRenderer(resources.displayMetrics.density)
+    private val renderer = RainRenderer(resources.displayMetrics.density)
     private var loop: RenderLoop? = null
-    private var config: MatrixConfig = MatrixConfig()
+    private var config: RainConfig = RainConfig()
     private var surfaceReady = false
     private var resumed = true
     private val tilt = TiltSource(context) { renderer.setTilt(it) }
@@ -22,7 +22,7 @@ class MatrixSurfaceView @JvmOverloads constructor(
         holder.addCallback(this)
     }
 
-    fun setConfig(newConfig: MatrixConfig) {
+    fun setConfig(newConfig: RainConfig) {
         config = newConfig.copyOf()
         renderer.updateConfig(config)
         syncTilt()

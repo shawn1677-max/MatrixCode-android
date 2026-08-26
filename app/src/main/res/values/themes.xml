@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.MatrixCode" parent="@android:style/Theme.Material.NoActionBar">
+    <style name="Theme.Codefall" parent="@android:style/Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/black</item>
-        <item name="android:colorAccent">@color/matrix_green</item>
+        <item name="android:colorAccent">@color/code_green</item>
         <item name="android:colorPrimary">@color/black</item>
         <item name="android:statusBarColor">@color/black</item>
         <item name="android:navigationBarColor">@color/black</item>
-        <item name="android:textColor">@color/matrix_green_pale</item>
+        <item name="android:textColor">@color/code_green_pale</item>
     </style>
 
-    <style name="Theme.MatrixCode.Fullscreen" parent="Theme.MatrixCode">
-        <item name="android:windowFullscreen">true</item>
+    <style name="Theme.Codefall.Fullscreen" parent="Theme.Codefall">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowContentOverlay">@null</item>
     </style>

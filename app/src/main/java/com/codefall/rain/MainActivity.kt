@@ -1,4 +1,4 @@
-package com.matrixcode.rain
+package com.codefall.rain
 
 import android.app.Activity
 import android.app.WallpaperManager
@@ -31,9 +31,9 @@ import kotlin.math.roundToInt
 /** Settings screen with a live preview of the rain across the top. */
 class MainActivity : Activity() {
 
-    private lateinit var preview: MatrixSurfaceView
+    private lateinit var preview: RainSurfaceView
     private lateinit var controls: LinearLayout
-    private lateinit var config: MatrixConfig
+    private lateinit var config: RainConfig
 
     /** Re-applies every control's displayed state after Randomize / Reset. */
     private val refreshers = mutableListOf<() -> Unit>()
@@ -46,7 +46,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        config = MatrixConfig.load(this)
+        config = RainConfig.load(this)
         preview = findViewById(R.id.preview)
         controls = findViewById(R.id.controls)
         preview.setConfig(config)
@@ -67,7 +67,7 @@ class MainActivity : Activity() {
             toast(getString(R.string.classic_applied))
         }
         findViewById<Button>(R.id.btnReset).setOnClickListener {
-            val d = MatrixConfig()
+            val d = RainConfig()
             // Keep the user's screensaver-behaviour choices; reset only the visuals.
             d.showClock = config.showClock
             d.clock24h = config.clock24h
@@ -217,7 +217,7 @@ class MainActivity : Activity() {
         try {
             val intent = Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).putExtra(
                 WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
-                ComponentName(this, MatrixWallpaperService::class.java)
+                ComponentName(this, CodefallWallpaperService::class.java)
             )
             startActivity(intent)
         } catch (_: ActivityNotFoundException) {
@@ -467,7 +467,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         // The screensaver may have been launched with different settings; reload.
-        config = MatrixConfig.load(this)
+        config = RainConfig.load(this)
         refreshers.forEach { it() }
         preview.setConfig(config)
         preview.onResumeRendering()

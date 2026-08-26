@@ -1,4 +1,4 @@
-package com.matrixcode.rain
+package com.codefall.rain
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -29,7 +29,7 @@ enum class GlyphSet(val label: String, val chars: String) {
  * trail fades through. RAINBOW is handled specially by the renderer (per-column hue).
  */
 enum class ColorTheme(val label: String, val head: Int, val body: Int) {
-    MATRIX_GREEN("Matrix Green", 0xFFCCFFCC.toInt(), 0xFF00FF41.toInt()),
+    CLASSIC_GREEN("Classic Green", 0xFFCCFFCC.toInt(), 0xFF00FF41.toInt()),
     AMBER("Amber CRT", 0xFFFFF0C0.toInt(), 0xFFFFA500.toInt()),
     CYAN("Ice Cyan", 0xFFDDFFFF.toInt(), 0xFF00E5FF.toInt()),
     CRIMSON("Red Pill", 0xFFFFD0D0.toInt(), 0xFFFF1744.toInt()),
@@ -39,7 +39,7 @@ enum class ColorTheme(val label: String, val head: Int, val body: Int) {
     RAINBOW("Rainbow", 0xFFFFFFFF.toInt(), 0xFF00FF41.toInt());
 
     companion object {
-        fun fromOrdinal(i: Int): ColorTheme = entries.getOrElse(i) { MATRIX_GREEN }
+        fun fromOrdinal(i: Int): ColorTheme = entries.getOrElse(i) { CLASSIC_GREEN }
     }
 }
 
@@ -47,8 +47,8 @@ enum class ColorTheme(val label: String, val head: Int, val body: Int) {
  * Every tunable knob of the rain, persisted in SharedPreferences so the settings
  * screen, the fullscreen screensaver, the daydream and the live wallpaper all agree.
  */
-data class MatrixConfig(
-    var theme: ColorTheme = ColorTheme.MATRIX_GREEN,
+data class RainConfig(
+    var theme: ColorTheme = ColorTheme.CLASSIC_GREEN,
     var glyphSet: GlyphSet = GlyphSet.KATAKANA,
     /** Fall speed multiplier, 0.1x .. 4.0x. */
     var speed: Float = 1.0f,
@@ -85,14 +85,14 @@ data class MatrixConfig(
     /** Seconds between message reveals, 5 .. 120. */
     var messageInterval: Float = 25f
 ) {
-    fun copyOf(): MatrixConfig = copy()
+    fun copyOf(): RainConfig = copy()
 
     /**
      * The exact look v1.0 shipped with: stock defaults, every later effect off.
      * Screensaver behaviour (clock, screen-awake) and the message are left alone.
      */
     fun toClassic() {
-        val d = MatrixConfig()
+        val d = RainConfig()
         theme = d.theme
         glyphSet = d.glyphSet
         speed = d.speed
@@ -124,12 +124,12 @@ data class MatrixConfig(
     }
 
     companion object {
-        private const val PREFS = "matrix_config"
+        private const val PREFS = "codefall_config"
 
-        fun load(context: Context): MatrixConfig {
+        fun load(context: Context): RainConfig {
             val p = prefs(context)
-            val d = MatrixConfig()
-            return MatrixConfig(
+            val d = RainConfig()
+            return RainConfig(
                 theme = ColorTheme.fromOrdinal(p.getInt("theme", d.theme.ordinal)),
                 glyphSet = GlyphSet.fromOrdinal(p.getInt("glyphSet", d.glyphSet.ordinal)),
                 speed = p.getFloat("speed", d.speed),

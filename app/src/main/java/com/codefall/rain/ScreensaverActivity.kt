@@ -1,4 +1,4 @@
-package com.matrixcode.rain
+package com.codefall.rain
 
 import android.animation.ObjectAnimator
 import android.app.Activity
@@ -11,13 +11,16 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import android.widget.FrameLayout
 import android.widget.TextView
 
 /** Fullscreen, immersive rain. Tap anywhere (or press back) to leave. */
 class ScreensaverActivity : Activity() {
 
-    private lateinit var surface: MatrixSurfaceView
+    private lateinit var surface: RainSurfaceView
     private lateinit var hint: TextView
     private val handler = Handler(Looper.getMainLooper())
     private val hideHint = Runnable { fadeOutHint() }
@@ -25,7 +28,7 @@ class ScreensaverActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val config = MatrixConfig.load(this)
+        val config = RainConfig.load(this)
         if (config.keepScreenOn) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
@@ -33,7 +36,7 @@ class ScreensaverActivity : Activity() {
         val root = FrameLayout(this)
         root.setBackgroundColor(Color.BLACK)
 
-        surface = MatrixSurfaceView(this)
+        surface = RainSurfaceView(this)
         surface.setConfig(config)
         root.addView(
             surface,
@@ -71,16 +74,15 @@ class ScreensaverActivity : Activity() {
     }
 
     private fun goImmersive() {
-        val decor = window.decorView
-        @Suppress("DEPRECATION")
-        decor.systemUiVisibility = (
-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-            )
+        // Targeting SDK 35+ means edge-to-edge is enforced and the old
+        // systemUiVisibility flags are ignored, so drive the bars through the
+        // androidx controller instead.
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes = window.attributes.apply {
                 layoutInDisplayCutoutMode =
@@ -98,7 +100,7 @@ class ScreensaverActivity : Activity() {
         super.onResume()
         goImmersive()
         // Settings may have changed while we were away.
-        surface.setConfig(MatrixConfig.load(this))
+        surface.setConfig(RainConfig.load(this))
         surface.onResumeRendering()
     }
 

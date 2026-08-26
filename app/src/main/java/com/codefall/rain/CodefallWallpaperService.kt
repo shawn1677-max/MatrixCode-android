@@ -1,33 +1,33 @@
-package com.matrixcode.rain
+package com.codefall.rain
 
 import android.content.SharedPreferences
 import android.service.wallpaper.WallpaperService
 import android.view.SurfaceHolder
 
 /** Same rain, running as a live wallpaper. Picks up settings changes immediately. */
-class MatrixWallpaperService : WallpaperService() {
+class CodefallWallpaperService : WallpaperService() {
 
-    override fun onCreateEngine(): Engine = MatrixEngine()
+    override fun onCreateEngine(): Engine = RainEngine()
 
-    private inner class MatrixEngine : Engine(),
+    private inner class RainEngine : Engine(),
         SharedPreferences.OnSharedPreferenceChangeListener {
 
-        private val renderer = MatrixRenderer(resources.displayMetrics.density)
+        private val renderer = RainRenderer(resources.displayMetrics.density)
         private var loop: RenderLoop? = null
         private var prefs: SharedPreferences? = null
         private val tilt =
-            TiltSource(this@MatrixWallpaperService) { renderer.setTilt(it) }
+            TiltSource(this@CodefallWallpaperService) { renderer.setTilt(it) }
 
         override fun onCreate(holder: SurfaceHolder) {
             super.onCreate(holder)
-            renderer.updateConfig(MatrixConfig.load(this@MatrixWallpaperService))
-            prefs = MatrixConfig.prefs(this@MatrixWallpaperService).also {
+            renderer.updateConfig(RainConfig.load(this@CodefallWallpaperService))
+            prefs = RainConfig.prefs(this@CodefallWallpaperService).also {
                 it.registerOnSharedPreferenceChangeListener(this)
             }
         }
 
         override fun onSharedPreferenceChanged(sp: SharedPreferences?, key: String?) {
-            val cfg = MatrixConfig.load(this@MatrixWallpaperService)
+            val cfg = RainConfig.load(this@CodefallWallpaperService)
             renderer.updateConfig(cfg)
             if (isVisible && cfg.tiltEnabled) tilt.start() else if (!cfg.tiltEnabled) tilt.stop()
         }
@@ -45,7 +45,7 @@ class MatrixWallpaperService : WallpaperService() {
         override fun onVisibilityChanged(visible: Boolean) {
             super.onVisibilityChanged(visible)
             if (visible) {
-                val cfg = MatrixConfig.load(this@MatrixWallpaperService)
+                val cfg = RainConfig.load(this@CodefallWallpaperService)
                 renderer.updateConfig(cfg)
                 if (cfg.tiltEnabled) tilt.start()
                 startLoop()

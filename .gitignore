@@ -11,3 +11,8 @@ captures/
 
 # Generated render-test frames (previews live in docs/)
 app/build/frames/
+
+# Signing secrets - never commit these
+keystore.properties
+*.jks
+*.keystore
