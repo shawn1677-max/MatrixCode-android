@@ -15,6 +15,8 @@ class MatrixWallpaperService : WallpaperService() {
         private val renderer = MatrixRenderer(resources.displayMetrics.density)
         private var loop: RenderLoop? = null
         private var prefs: SharedPreferences? = null
+        private val tilt =
+            TiltSource(this@MatrixWallpaperService) { renderer.setTilt(it) }
 
         override fun onCreate(holder: SurfaceHolder) {
             super.onCreate(holder)
@@ -25,7 +27,9 @@ class MatrixWallpaperService : WallpaperService() {
         }
 
         override fun onSharedPreferenceChanged(sp: SharedPreferences?, key: String?) {
-            renderer.updateConfig(MatrixConfig.load(this@MatrixWallpaperService))
+            val cfg = MatrixConfig.load(this@MatrixWallpaperService)
+            renderer.updateConfig(cfg)
+            if (isVisible && cfg.tiltEnabled) tilt.start() else if (!cfg.tiltEnabled) tilt.stop()
         }
 
         override fun onSurfaceChanged(
@@ -41,9 +45,12 @@ class MatrixWallpaperService : WallpaperService() {
         override fun onVisibilityChanged(visible: Boolean) {
             super.onVisibilityChanged(visible)
             if (visible) {
-                renderer.updateConfig(MatrixConfig.load(this@MatrixWallpaperService))
+                val cfg = MatrixConfig.load(this@MatrixWallpaperService)
+                renderer.updateConfig(cfg)
+                if (cfg.tiltEnabled) tilt.start()
                 startLoop()
             } else {
+                tilt.stop()
                 stopLoop()
             }
         }
@@ -54,6 +61,7 @@ class MatrixWallpaperService : WallpaperService() {
         }
 
         override fun onDestroy() {
+            tilt.stop()
             stopLoop()
             prefs?.unregisterOnSharedPreferenceChangeListener(this)
             renderer.release()

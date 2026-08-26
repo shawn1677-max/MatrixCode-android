@@ -36,6 +36,7 @@ class MatrixRenderer(private val displayDensity: Float) {
         var hue = 0f
         var flicker = 0f
         var respawnDelay = 0f
+        var driftX = 0f
     }
 
     private var config: MatrixConfig = MatrixConfig()
@@ -56,6 +57,26 @@ class MatrixRenderer(private val displayDensity: Float) {
     private var columns: Array<Column> = emptyArray()
     private var elapsed = 0f
 
+    /** Raw tilt from the sensor, -1 (left edge down) .. 1 (right edge down). */
+    @Volatile
+    private var targetTilt = 0f
+    private var smoothedTilt = 0f
+
+    // Message reveal state.
+    private var messageTimer = 0f
+    private var revealElapsed = -1f
+    private var revealRow = 0
+
+    private val messagePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        textAlign = Paint.Align.CENTER
+    }
+    private val messageGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        textAlign = Paint.Align.CENTER
+        style = Paint.Style.STROKE
+    }
+
     private val glyphPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = Typeface.MONOSPACE
         textAlign = Paint.Align.LEFT
@@ -66,6 +87,7 @@ class MatrixRenderer(private val displayDensity: Float) {
         style = Paint.Style.STROKE
     }
     private val bloomPaint = Paint(Paint.FILTER_BITMAP_FLAG)
+    private val scrimPaint = Paint()
     private val scanlinePaint = Paint()
     private val clockPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
@@ -84,6 +106,14 @@ class MatrixRenderer(private val displayDensity: Float) {
     private val hsv = FloatArray(3)
     private val scratch = CharArray(1)
     private val bloomRect = android.graphics.RectF()
+
+    /**
+     * Feed in device tilt: -1 when the left edge is down, +1 when the right edge is
+     * down. Safe to call from the sensor thread.
+     */
+    fun setTilt(x: Float) {
+        targetTilt = x.coerceIn(-1f, 1f)
+    }
 
     /** Swap in a new config; applied at the top of the next frame. */
     fun updateConfig(newConfig: MatrixConfig) {
@@ -184,6 +214,7 @@ class MatrixRenderer(private val displayDensity: Float) {
         }
         c.hue = (index * 360f / max(1, cols) + Random.nextDouble(-12.0, 12.0).toFloat())
         c.flicker = 0f
+        c.driftX = 0f
         c.respawnDelay = if (initial) 0f else Random.nextDouble(0.0, 1.4).toFloat()
         c.active = Random.nextFloat() < config.density
     }
@@ -237,6 +268,13 @@ class MatrixRenderer(private val displayDensity: Float) {
         val chars = config.glyphSet.chars
         val speedMul = config.speed
 
+        // Ease toward the sensor reading so the rain leans rather than snaps.
+        val wantTilt =
+            if (config.tiltEnabled) (targetTilt * config.tiltStrength).coerceIn(-1f, 1f) else 0f
+        smoothedTilt += (wantTilt - smoothedTilt) * min(1f, step * 5f)
+
+        advanceMessage(step)
+
         for (i in columns.indices) {
             val c = columns[i]
 
@@ -250,14 +288,31 @@ class MatrixRenderer(private val displayDensity: Float) {
 
             c.head += c.speed * speedMul * step
 
+            // Tilt pulls each column sideways at its own fall rate, so the whole
+            // field shears instead of sliding rigidly.
+            if (smoothedTilt != 0f) {
+                c.driftX += smoothedTilt * c.speed * speedMul * step * cellH * LEAN_PER_ROW
+            }
+
             // In-place glyph mutation: the churn that makes the trail feel alive.
             if (config.mutationRate > 0f) {
                 val mutations = config.mutationRate * c.trail * step * 9f
                 var n = mutations.toInt()
                 if (Random.nextFloat() < mutations - n) n++
+                val headRow = c.head.toInt()
                 repeat(n) {
-                    val idx = Random.nextInt(c.glyphs.size)
-                    c.glyphs[idx] = chars[Random.nextInt(chars.length)]
+                    val idx = if (config.settleTrail) {
+                        // Bias churn hard toward the head: a cubed sample over the
+                        // leading part of the trail keeps the boil at the bright end
+                        // and lets glyphs freeze once they fall behind and fade.
+                        val u = Random.nextFloat()
+                        headRow - (u * u * u * c.trail * 0.6f).toInt()
+                    } else {
+                        Random.nextInt(c.glyphs.size)
+                    }
+                    if (idx >= 0 && idx < c.glyphs.size) {
+                        c.glyphs[idx] = chars[Random.nextInt(chars.length)]
+                    }
                 }
             }
 
@@ -267,6 +322,38 @@ class MatrixRenderer(private val displayDensity: Float) {
             }
 
             if (c.head - c.trail > rows) spawn(c, i, initial = false)
+        }
+    }
+
+    private fun advanceMessage(step: Float) {
+        if (config.message.isBlank()) {
+            revealElapsed = -1f
+            messageTimer = 0f
+            return
+        }
+        if (revealElapsed >= 0f) {
+            revealElapsed += step
+            if (revealElapsed > REVEAL_DURATION) revealElapsed = -1f
+            return
+        }
+        messageTimer += step
+        if (messageTimer >= config.messageInterval.coerceAtLeast(1f)) {
+            messageTimer = 0f
+            revealElapsed = 0f
+            // Drift the line around the middle third so it doesn't always land dead centre.
+            val mid = rows / 2
+            revealRow = (mid + Random.nextInt(-rows / 8, rows / 8 + 1)).coerceIn(1, rows - 2)
+        }
+    }
+
+    /** Fade envelope for the reveal: in, hold, out. 0 when nothing is showing. */
+    private fun revealAlpha(): Float {
+        val t = revealElapsed
+        if (t < 0f) return 0f
+        return when {
+            t < REVEAL_FADE_IN -> t / REVEAL_FADE_IN
+            t < REVEAL_DURATION - REVEAL_FADE_OUT -> 1f
+            else -> ((REVEAL_DURATION - t) / REVEAL_FADE_OUT).coerceIn(0f, 1f)
         }
     }
 
@@ -281,8 +368,20 @@ class MatrixRenderer(private val displayDensity: Float) {
         val bodyColor = cfg.theme.body
         val glow = cfg.glow
         val bloom = bloomBitmap
+        val widthF = width.toFloat()
 
         glowStrokePaint.strokeWidth = max(0.6f, glow * cellH * 0.10f)
+
+        // The film's glyphs were shot mirrored. Flipping the whole rain layer once is
+        // far cheaper than flipping each glyph, and since column order is random the
+        // reversed layout is indistinguishable. The clock and the message are drawn
+        // after the flip is undone, so they stay readable.
+        val mirror = cfg.mirrorGlyphs
+        val restoreTo = canvas.save()
+        if (mirror) canvas.scale(-1f, 1f, widthF * 0.5f, 0f)
+        // A mirrored canvas also reverses apparent motion, so the lean is negated to
+        // keep the rain falling toward whichever edge the user tipped down.
+        val lean = if (mirror) -smoothedTilt else smoothedTilt
 
         for (i in columns.indices) {
             val c = columns[i]
@@ -303,7 +402,11 @@ class MatrixRenderer(private val displayDensity: Float) {
                 colHead = headColor
             }
 
-            val x = i * cellW
+            var columnX = i * cellW + (if (mirror) -c.driftX else c.driftX)
+            if (widthF > 0f) {
+                columnX %= widthF
+                if (columnX < 0f) columnX += widthF
+            }
             val trail = c.trail
 
             // Paint from the tail up so brighter glyphs land on top of dimmer ones.
@@ -320,6 +423,11 @@ class MatrixRenderer(private val displayDensity: Float) {
                 if (alpha < 6) continue
 
                 val y = (row + 1) * cellH - cellH * 0.18f
+                // Trail glyphs mark where the head has been, so they lag behind the
+                // lean by one cell per row.
+                // Only the column's own position recirculates; trail glyphs are left
+                // to run off the edge, since wrapping mid-streak would tear it in two.
+                val x = columnX - lean * t * cellH * LEAN_PER_ROW
                 scratch[0] = c.glyphs[row.coerceIn(0, c.glyphs.size - 1)]
 
                 if (t == 0) {
@@ -353,11 +461,53 @@ class MatrixRenderer(private val displayDensity: Float) {
             }
         }
 
-        if (cfg.showClock) drawClock(canvas, if (rainbow) ColorTheme.MONO.head else cfg.theme.head)
+        canvas.restoreToCount(restoreTo)
+
+        val overlayColor = if (rainbow) ColorTheme.MONO.head else cfg.theme.head
+        if (revealElapsed >= 0f) drawMessage(canvas, overlayColor)
+        if (cfg.showClock) drawClock(canvas, overlayColor)
 
         scanlineShader?.let {
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), scanlinePaint)
         }
+    }
+
+    /**
+     * The reveal: the rain briefly resolves into the user's text, holds, and dissolves.
+     * Drawn after the mirror transform is undone so the message reads forwards.
+     */
+    private fun drawMessage(canvas: Canvas, color: Int) {
+        val text = config.message.trim()
+        if (text.isEmpty()) return
+        val envelope = revealAlpha()
+        if (envelope <= 0.01f) return
+
+        val size = min(cellH * 2.4f, height * 0.11f)
+        messagePaint.textSize = size
+        val measured = messagePaint.measureText(text)
+        val maxWidth = width * 0.9f
+        if (measured > maxWidth && measured > 0f) {
+            messagePaint.textSize = size * (maxWidth / measured)
+        }
+        messageGlowPaint.textSize = messagePaint.textSize
+        messageGlowPaint.strokeWidth = max(1f, messagePaint.textSize * 0.025f)
+
+        val cx = width / 2f
+        val cy = (revealRow + 1) * cellH
+
+        // A soft band knocks the rain back just enough for the text to read.
+        val bandHeight = messagePaint.textSize * 1.7f
+        scrimPaint.color = Color.BLACK
+        scrimPaint.alpha = (envelope * 170f).toInt().coerceIn(0, 255)
+        canvas.drawRect(0f, cy - bandHeight * 0.78f, width.toFloat(), cy + bandHeight * 0.34f, scrimPaint)
+
+        messageGlowPaint.color = color
+        messageGlowPaint.alpha = (envelope * config.glow * 120f).toInt().coerceIn(0, 255)
+        canvas.drawText(text, cx, cy, messageGlowPaint)
+
+        messagePaint.color = color
+        messagePaint.alpha = (envelope * 255f).toInt().coerceIn(0, 255)
+        canvas.drawText(text, cx, cy, messagePaint)
     }
 
     private fun drawClock(canvas: Canvas, color: Int) {
@@ -392,6 +542,14 @@ class MatrixRenderer(private val displayDensity: Float) {
         clockPaint.color = color
         clockPaint.alpha = 210
         canvas.drawText(text, cx, cy, clockPaint)
+    }
+
+    companion object {
+        /** Sideways pixels per row of fall at full lean: about a 17 degree slant. */
+        private const val LEAN_PER_ROW = 0.30f
+        private const val REVEAL_FADE_IN = 0.7f
+        private const val REVEAL_FADE_OUT = 1.1f
+        private const val REVEAL_DURATION = 4.0f
     }
 
     fun release() {

@@ -71,9 +71,42 @@ data class MatrixConfig(
     /** 24-hour clock instead of 12-hour. */
     var clock24h: Boolean = true,
     /** Keep the screen on while the screensaver is showing. */
-    var keepScreenOn: Boolean = true
+    var keepScreenOn: Boolean = true,
+    /** Flip glyphs horizontally, the way the film's code was shot. */
+    var mirrorGlyphs: Boolean = true,
+    /** Concentrate glyph churn near the head so the tail settles as it fades. */
+    var settleTrail: Boolean = true,
+    /** Let device tilt steer which way the rain falls. */
+    var tiltEnabled: Boolean = false,
+    /** How hard tilt pulls the rain sideways, 0 .. 2. */
+    var tiltStrength: Float = 1.0f,
+    /** Text the rain periodically resolves into. Blank disables the reveal. */
+    var message: String = "",
+    /** Seconds between message reveals, 5 .. 120. */
+    var messageInterval: Float = 25f
 ) {
     fun copyOf(): MatrixConfig = copy()
+
+    /**
+     * The exact look v1.0 shipped with: stock defaults, every later effect off.
+     * Screensaver behaviour (clock, screen-awake) and the message are left alone.
+     */
+    fun toClassic() {
+        val d = MatrixConfig()
+        theme = d.theme
+        glyphSet = d.glyphSet
+        speed = d.speed
+        glyphSize = d.glyphSize
+        density = d.density
+        trailLength = d.trailLength
+        mutationRate = d.mutationRate
+        glow = d.glow
+        scanlines = d.scanlines
+        glitch = d.glitch
+        mirrorGlyphs = false
+        settleTrail = false
+        tiltEnabled = false
+    }
 
     fun randomize() {
         theme = ColorTheme.entries.random()
@@ -86,6 +119,8 @@ data class MatrixConfig(
         glow = Random.nextDouble(0.0, 1.0).toFloat()
         scanlines = Random.nextDouble(0.0, 0.6).toFloat()
         glitch = Random.nextDouble(0.0, 0.5).toFloat()
+        mirrorGlyphs = Random.nextBoolean()
+        settleTrail = Random.nextBoolean()
     }
 
     companion object {
@@ -107,7 +142,13 @@ data class MatrixConfig(
                 glitch = p.getFloat("glitch", d.glitch),
                 showClock = p.getBoolean("showClock", d.showClock),
                 clock24h = p.getBoolean("clock24h", d.clock24h),
-                keepScreenOn = p.getBoolean("keepScreenOn", d.keepScreenOn)
+                keepScreenOn = p.getBoolean("keepScreenOn", d.keepScreenOn),
+                mirrorGlyphs = p.getBoolean("mirrorGlyphs", d.mirrorGlyphs),
+                settleTrail = p.getBoolean("settleTrail", d.settleTrail),
+                tiltEnabled = p.getBoolean("tiltEnabled", d.tiltEnabled),
+                tiltStrength = p.getFloat("tiltStrength", d.tiltStrength),
+                message = p.getString("message", d.message) ?: d.message,
+                messageInterval = p.getFloat("messageInterval", d.messageInterval)
             )
         }
 
@@ -130,6 +171,12 @@ data class MatrixConfig(
             .putBoolean("showClock", showClock)
             .putBoolean("clock24h", clock24h)
             .putBoolean("keepScreenOn", keepScreenOn)
+            .putBoolean("mirrorGlyphs", mirrorGlyphs)
+            .putBoolean("settleTrail", settleTrail)
+            .putBoolean("tiltEnabled", tiltEnabled)
+            .putFloat("tiltStrength", tiltStrength)
+            .putString("message", message)
+            .putFloat("messageInterval", messageInterval)
             .apply()
     }
 }

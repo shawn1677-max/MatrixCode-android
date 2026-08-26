@@ -37,15 +37,17 @@ class UiTest {
         val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
         val controls = controlsOf(activity)
 
-        // Two spinners (colour, character set), eight sliders, three switches.
+        // Two spinners (colour, character set), ten sliders, six switches.
         assertEquals(2, collect(controls, Spinner::class.java).size)
-        assertEquals(8, collect(controls, SeekBar::class.java).size)
-        assertEquals(3, collect(controls, Switch::class.java).size)
+        assertEquals(10, collect(controls, SeekBar::class.java).size)
+        assertEquals(6, collect(controls, Switch::class.java).size)
+        assertEquals(1, collect(controls, android.widget.EditText::class.java).size)
 
         assertNotNull(activity.findViewById<MatrixSurfaceView>(R.id.preview))
         assertNotNull(activity.findViewById<Button>(R.id.btnStart))
         assertNotNull(activity.findViewById<Button>(R.id.btnRandomize))
         assertNotNull(activity.findViewById<Button>(R.id.btnReset))
+        assertNotNull(activity.findViewById<Button>(R.id.btnClassic))
     }
 
     @Test
@@ -97,6 +99,44 @@ class UiTest {
         assertEquals(MatrixConfig().speed, after.speed, 0.001f)
         assertTrue("clock preference was clobbered by reset", after.showClock)
         assertEquals(false, after.clock24h)
+    }
+
+    @Test
+    fun classicButtonRestoresTheV1Look() {
+        val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
+        MatrixConfig(
+            theme = ColorTheme.CRIMSON,
+            speed = 3.9f,
+            mirrorGlyphs = true,
+            settleTrail = true,
+            tiltEnabled = true,
+            showClock = true,
+            message = "WAKE UP, NEO"
+        ).save(activity)
+
+        val fresh = Robolectric.buildActivity(MainActivity::class.java).setup().get()
+        fresh.findViewById<Button>(R.id.btnClassic).performClick()
+
+        val after = MatrixConfig.load(fresh)
+        val v1 = MatrixConfig()
+        assertEquals(v1.theme, after.theme)
+        assertEquals(v1.speed, after.speed, 0.001f)
+        assertEquals(v1.glow, after.glow, 0.001f)
+        // The three post-v1.0 effects are what "classic" turns off.
+        assertEquals(false, after.mirrorGlyphs)
+        assertEquals(false, after.settleTrail)
+        assertEquals(false, after.tiltEnabled)
+        // It is a look, not a wipe: the message and clock preferences survive.
+        assertEquals("WAKE UP, NEO", after.message)
+        assertTrue(after.showClock)
+    }
+
+    @Test
+    fun typingAMessagePersistsIt() {
+        val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
+        val field = collect(controlsOf(activity), android.widget.EditText::class.java).first()
+        field.setText("KNOCK KNOCK")
+        assertEquals("KNOCK KNOCK", MatrixConfig.load(activity).message)
     }
 
     @Test
@@ -153,7 +193,13 @@ class UiTest {
             glitch = 0.11f,
             showClock = true,
             clock24h = false,
-            keepScreenOn = false
+            keepScreenOn = false,
+            mirrorGlyphs = false,
+            settleTrail = false,
+            tiltEnabled = true,
+            tiltStrength = 1.4f,
+            message = "FOLLOW THE WHITE RABBIT",
+            messageInterval = 42f
         )
         cfg.save(ctx)
         assertEquals(cfg, MatrixConfig.load(ctx))

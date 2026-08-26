@@ -5,6 +5,10 @@ speed, density and a pile of other knobs.
 
 <p align="center">
   <img src="docs/preview-green.png" width="30%" alt="Matrix Green" />
+  <img src="docs/preview-message.png" width="30%" alt="A secret message resolving out of the rain" />
+  <img src="docs/preview-tilt.png" width="30%" alt="Rain leaning under device tilt" />
+</p>
+<p align="center">
   <img src="docs/preview-amber.png" width="30%" alt="Amber CRT, clock on" />
   <img src="docs/preview-rainbow.png" width="30%" alt="Rainbow" />
 </p>
@@ -12,6 +16,11 @@ speed, density and a pile of other knobs.
 ## Install
 
 Grab **`dist/MatrixCode.apk`** from this repo, copy it to your phone and tap it.
+
+`dist/` also keeps every released build: `MatrixCode-v1.0.apk` is the original
+release, `MatrixCode-v1.1.apk` the current one, and `MatrixCode.apk` is always a
+copy of the latest. The `v1.0` branch holds the source as it stood at that
+release.
 
 Android will ask you to allow installing from unknown sources the first time —
 that's expected for an APK that didn't come from the Play Store. Or install over
@@ -51,6 +60,7 @@ There are two other ways to run it:
 | Character set | 6 sets | Katakana, Binary, Hexadecimal, ASCII, Symbols, Mixed |
 | Glyph size | 10–36 dp | Bigger glyphs mean fewer, wider columns |
 | Column density | 20–100% | How many columns are raining at once |
+| Mirror glyphs | on/off | Flips the glyphs, the way the film's code was shot |
 
 **Motion**
 
@@ -59,6 +69,16 @@ There are two other ways to run it:
 | Fall speed | 0.1x–4.0x | Multiplier on the fall rate |
 | Trail length | 0.2x–2.0x | How far the fading tail stretches behind each head |
 | Glyph churn | 0–100% | How often glyphs mutate in place while falling |
+| Settle trail | on/off | Concentrates the churn near the bright head, so glyphs freeze as they fade |
+| Tilt steers the rain | on/off | The rain leans toward whichever edge you tip down |
+| Tilt strength | 0–2.0x | How hard tilt pulls, capped at about a 17° slant |
+
+**Secret message**
+
+Type any text and the rain periodically resolves into it — it fades in over the
+falling code, holds for a couple of seconds, then dissolves back. Blank disables
+it. The reveal interval is adjustable from 5 to 120 seconds. The message is
+drawn after the mirror flip is undone, so it always reads forwards.
 
 **Effects**
 
@@ -74,7 +94,9 @@ Show clock (with a 12/24-hour toggle) and keep-screen-awake.
 
 `RANDOMIZE` rolls every visual setting at once — good for finding looks you
 wouldn't have dialled in by hand. `RESET` returns the visuals to defaults but
-leaves your clock and screen-awake preferences alone.
+leaves your clock, screen-awake and message preferences alone. `CLASSIC 1.0`
+restores exactly the look v1.0 shipped with, turning off mirroring, trail
+settling and tilt in one tap.
 
 Settings are saved as you change them and shared by all three modes.
 
@@ -91,6 +113,19 @@ with a translucent black rect (the usual trick, which smears), every glyph in a
 trail is drawn explicitly with its own alpha — that keeps the trail crisp and
 makes trail length a real, controllable parameter.
 
+Mirroring flips the entire rain layer with a single canvas transform rather than
+flipping each glyph, which costs one `save`/`restore` per frame instead of a
+thousand. Because that also reverses apparent motion, the tilt lean is negated
+under the mirror so the rain still falls toward the edge you tipped down. The
+clock and the message are drawn after the flip is undone, so they read forwards.
+
+Tilt uses the gravity sensor, rotated into screen space and registered only
+while the rain is actually on screen. The lean is capped regardless of the
+strength setting: uncapped, a full tilt sheared each trail by more than a cell
+per row and smeared the streaks across the whole screen. Drift and slant share
+one coefficient, since a trail marks where its own head has been — if the two
+disagree, the streak detaches from its head.
+
 `RenderLoop` is a plain render thread that drives the renderer onto a
 `SurfaceHolder`, using `lockHardwareCanvas` where available.
 
@@ -105,6 +140,14 @@ export ANDROID_HOME=/path/to/android-sdk
 ```
 
 The tests render real frames off-device through Robolectric's native graphics
-mode and check them for blank output, rain reaching the full height, and the
-right colour dominating per theme. Frames are written to `app/build/frames/` so
-you can eyeball changes to the look without deploying to a phone.
+mode and check them for blank output, rain reaching the full height, the right
+colour dominating per theme, the message reveal firing and clearing, and churn
+concentrating at the head when the trail is set to settle. Frames are written to
+`app/build/frames/` so you can eyeball changes to the look without deploying to
+a phone.
+
+The tilt tests measure the lean by subclassing `Canvas` and recording where each
+glyph is asked to be drawn, against a field frozen at zero speed. Measuring it
+from pixels instead gives a badly biased answer: glyphs sheared past the screen
+edge are clipped away, and losing exactly the most-shifted glyphs cancels out
+the shift being measured.

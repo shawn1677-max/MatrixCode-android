@@ -8,6 +8,9 @@ import android.content.Intent
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
+import android.text.Editable
+import android.text.InputType
+import android.text.TextWatcher
 import android.provider.Settings
 import android.util.TypedValue
 import android.view.Gravity
@@ -16,6 +19,7 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.Spinner
@@ -57,12 +61,19 @@ class MainActivity : Activity() {
             config.randomize()
             refreshAll()
         }
+        findViewById<Button>(R.id.btnClassic).setOnClickListener {
+            config.toClassic()
+            refreshAll()
+            toast(getString(R.string.classic_applied))
+        }
         findViewById<Button>(R.id.btnReset).setOnClickListener {
             val d = MatrixConfig()
             // Keep the user's screensaver-behaviour choices; reset only the visuals.
             d.showClock = config.showClock
             d.clock24h = config.clock24h
             d.keepScreenOn = config.keepScreenOn
+            d.message = config.message
+            d.messageInterval = config.messageInterval
             config = d
             refreshAll()
         }
@@ -105,6 +116,10 @@ class MainActivity : Activity() {
             { config.density }, { "%d%%".format((it * 100).roundToInt()) }
         ) { config.density = it; onConfigChanged() }
 
+        addSwitch(getString(R.string.mirror_glyphs), { config.mirrorGlyphs }) {
+            config.mirrorGlyphs = it; onConfigChanged()
+        }
+
         addSection(getString(R.string.section_motion))
         addSlider(
             getString(R.string.speed), 0.1f, 4f,
@@ -121,6 +136,23 @@ class MainActivity : Activity() {
             { config.mutationRate }, { "%d%%".format((it * 100).roundToInt()) }
         ) { config.mutationRate = it; onConfigChanged() }
 
+        addSwitch(getString(R.string.settle_trail), { config.settleTrail }) {
+            config.settleTrail = it; onConfigChanged()
+        }
+
+        addSwitch(getString(R.string.tilt_enabled), { config.tiltEnabled }) { on ->
+            if (on && !TiltSource(this) {}.isAvailable) {
+                toast(getString(R.string.no_tilt_sensor))
+            }
+            config.tiltEnabled = on
+            onConfigChanged()
+        }
+
+        addSlider(
+            getString(R.string.tilt_strength), 0f, 2f,
+            { config.tiltStrength }, { "%.2fx".format(it) }
+        ) { config.tiltStrength = it; onConfigChanged() }
+
         addSection(getString(R.string.section_fx))
         addSlider(
             getString(R.string.glow), 0f, 1f,
@@ -136,6 +168,18 @@ class MainActivity : Activity() {
             getString(R.string.glitch), 0f, 1f,
             { config.glitch }, { "%d%%".format((it * 100).roundToInt()) }
         ) { config.glitch = it; onConfigChanged() }
+
+        addSection(getString(R.string.section_message))
+        addTextField(
+            getString(R.string.message_label),
+            getString(R.string.message_hint),
+            { config.message }
+        ) { config.message = it; onConfigChanged() }
+
+        addSlider(
+            getString(R.string.message_interval), 5f, 120f,
+            { config.messageInterval }, { "%.0f s".format(it) }
+        ) { config.messageInterval = it; onConfigChanged() }
 
         addSection(getString(R.string.section_saver))
         addSwitch(getString(R.string.show_clock), { config.showClock }) {
@@ -353,6 +397,57 @@ class MainActivity : Activity() {
         controls.addView(sw, lp)
 
         refreshers += { if (sw.isChecked != get()) sw.isChecked = get() }
+    }
+
+    private fun addTextField(
+        name: String,
+        hint: String,
+        get: () -> String,
+        set: (String) -> Unit
+    ) {
+        val row = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        row.addView(label(name))
+
+        val field = EditText(this).apply {
+            this.hint = hint
+            setText(get())
+            setTextColor(green)
+            setHintTextColor(dim)
+            textSize = 15f
+            typeface = Typeface.MONOSPACE
+            isSingleLine = true
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                backgroundTintList = android.content.res.ColorStateList.valueOf(green)
+            }
+            addTextChangedListener(object : TextWatcher {
+                override fun afterTextChanged(s: Editable?) {
+                    val v = s?.toString() ?: ""
+                    if (v != get()) set(v)
+                }
+
+                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+            })
+        }
+        row.addView(
+            field,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        val lp = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        lp.topMargin = dp(4f)
+        controls.addView(row, lp)
+
+        refreshers += {
+            // Only overwrite when it actually differs, so the caret isn't yanked
+            // to the end on every unrelated refresh.
+            if (field.text.toString() != get()) field.setText(get())
+        }
     }
 
     private fun addFlatButton(text: String, onClick: () -> Unit) {

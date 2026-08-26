@@ -16,6 +16,7 @@ class MatrixSurfaceView @JvmOverloads constructor(
     private var config: MatrixConfig = MatrixConfig()
     private var surfaceReady = false
     private var resumed = true
+    private val tilt = TiltSource(context) { renderer.setTilt(it) }
 
     init {
         holder.addCallback(this)
@@ -24,12 +25,18 @@ class MatrixSurfaceView @JvmOverloads constructor(
     fun setConfig(newConfig: MatrixConfig) {
         config = newConfig.copyOf()
         renderer.updateConfig(config)
+        syncTilt()
+    }
+
+    private fun syncTilt() {
+        if (resumed && surfaceReady && config.tiltEnabled) tilt.start() else tilt.stop()
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         surfaceReady = true
         renderer.updateConfig(config)
         startLoopIfPossible()
+        syncTilt()
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
@@ -38,6 +45,7 @@ class MatrixSurfaceView @JvmOverloads constructor(
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         surfaceReady = false
+        tilt.stop()
         loop?.stopLoop()
         loop = null
     }
@@ -51,15 +59,18 @@ class MatrixSurfaceView @JvmOverloads constructor(
         resumed = true
         startLoopIfPossible()
         loop?.resumeLoop()
+        syncTilt()
     }
 
     fun onPauseRendering() {
         resumed = false
+        tilt.stop()
         loop?.stopLoop()
         loop = null
     }
 
     fun release() {
+        tilt.stop()
         loop?.stopLoop()
         loop = null
         renderer.release()
