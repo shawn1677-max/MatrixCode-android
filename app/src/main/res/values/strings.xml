@@ -6,7 +6,6 @@
     <string name="start">▶  START SCREENSAVER</string>
     <string name="randomize">RANDOMIZE</string>
     <string name="reset">RESET</string>
-    <string name="classic">CLASSIC</string>
     <string name="preview_label">LIVE PREVIEW</string>
     <string name="section_look">APPEARANCE</string>
     <string name="section_motion">MOTION</string>
@@ -40,7 +39,6 @@
     <string name="message_label">Text the rain resolves into</string>
     <string name="message_interval">Reveal every</string>
     <string name="no_tilt_sensor">This device has no motion sensor for tilt.</string>
-    <string name="classic_applied">Restored the classic look.</string>
     <string name="show_clock">Show clock</string>
     <string name="clock_24h">24-hour clock</string>
     <string name="keep_screen_on">Keep screen awake</string>

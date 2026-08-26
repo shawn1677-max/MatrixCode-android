@@ -116,9 +116,7 @@ rather than pushing digits out of frame. Plus keep-screen-awake.
 
 `RANDOMIZE` rolls every visual setting at once — good for finding looks you
 wouldn't have dialled in by hand. `RESET` returns the visuals to defaults but
-leaves your clock, screen-awake and message preferences alone. `CLASSIC`
-restores the original v1.0 look, turning off mirroring, trail settling and tilt
-in one tap.
+leaves your clock, screen-awake and message preferences alone.
 
 Settings are saved as you change them and shared by all three modes.
 

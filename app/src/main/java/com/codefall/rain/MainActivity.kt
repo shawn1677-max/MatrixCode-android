@@ -61,11 +61,6 @@ class MainActivity : Activity() {
             config.randomize()
             refreshAll()
         }
-        findViewById<Button>(R.id.btnClassic).setOnClickListener {
-            config.toClassic()
-            refreshAll()
-            toast(getString(R.string.classic_applied))
-        }
         findViewById<Button>(R.id.btnReset).setOnClickListener {
             val d = RainConfig()
             // Keep the user's screensaver-behaviour choices; reset only the visuals.

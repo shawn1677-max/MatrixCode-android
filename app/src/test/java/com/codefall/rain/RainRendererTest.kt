@@ -765,26 +765,11 @@ class RainRendererTest {
             kotlin.math.abs(onA - onB) > 0.3)
     }
 
-    @Test
-    fun classicTurnsEveryCrtFilterOff() {
-        val cfg = RainConfig(
-            apertureGrille = 0.8f, vignette = 0.8f, crtFlicker = 0.8f,
-            noise = 0.8f, aberration = 0.8f
-        )
-        cfg.toClassic()
-        assertEquals(0f, cfg.apertureGrille, 0f)
-        assertEquals(0f, cfg.vignette, 0f)
-        assertEquals(0f, cfg.crtFlicker, 0f)
-        assertEquals(0f, cfg.noise, 0f)
-        assertEquals(0f, cfg.aberration, 0f)
-    }
-
     /** Renders the frames used in the README so the docs track the real output. */
     @Test
     fun showcaseFrames() {
         val shots = listOf(
             "showcase-mirrored" to RainConfig(mirrorGlyphs = true),
-            "showcase-classic" to RainConfig().apply { toClassic() },
             "showcase-tilt" to RainConfig(
                 tiltEnabled = true, tiltStrength = 1f, speed = 1.4f
             ),

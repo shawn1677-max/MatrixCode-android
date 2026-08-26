@@ -103,32 +103,6 @@ data class RainConfig(
 ) {
     fun copyOf(): RainConfig = copy()
 
-    /**
-     * The exact look v1.0 shipped with: stock defaults, every later effect off.
-     * Screensaver behaviour (clock, screen-awake) and the message are left alone.
-     */
-    fun toClassic() {
-        val d = RainConfig()
-        theme = d.theme
-        glyphSet = d.glyphSet
-        speed = d.speed
-        glyphSize = d.glyphSize
-        density = d.density
-        trailLength = d.trailLength
-        mutationRate = d.mutationRate
-        glow = d.glow
-        scanlines = d.scanlines
-        glitch = d.glitch
-        mirrorGlyphs = false
-        settleTrail = false
-        tiltEnabled = false
-        apertureGrille = 0f
-        vignette = 0f
-        crtFlicker = 0f
-        noise = 0f
-        aberration = 0f
-    }
-
     fun randomize() {
         theme = ColorTheme.entries.random()
         glyphSet = GlyphSet.entries.random()

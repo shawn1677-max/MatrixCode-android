@@ -47,7 +47,6 @@ class UiTest {
         assertNotNull(activity.findViewById<Button>(R.id.btnStart))
         assertNotNull(activity.findViewById<Button>(R.id.btnRandomize))
         assertNotNull(activity.findViewById<Button>(R.id.btnReset))
-        assertNotNull(activity.findViewById<Button>(R.id.btnClassic))
     }
 
     @Test
@@ -99,36 +98,6 @@ class UiTest {
         assertEquals(RainConfig().speed, after.speed, 0.001f)
         assertTrue("clock preference was clobbered by reset", after.showClock)
         assertEquals(false, after.clock24h)
-    }
-
-    @Test
-    fun classicButtonRestoresTheV1Look() {
-        val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
-        RainConfig(
-            theme = ColorTheme.CRIMSON,
-            speed = 3.9f,
-            mirrorGlyphs = true,
-            settleTrail = true,
-            tiltEnabled = true,
-            showClock = true,
-            message = "WAKE UP, NEO"
-        ).save(activity)
-
-        val fresh = Robolectric.buildActivity(MainActivity::class.java).setup().get()
-        fresh.findViewById<Button>(R.id.btnClassic).performClick()
-
-        val after = RainConfig.load(fresh)
-        val v1 = RainConfig()
-        assertEquals(v1.theme, after.theme)
-        assertEquals(v1.speed, after.speed, 0.001f)
-        assertEquals(v1.glow, after.glow, 0.001f)
-        // The three post-v1.0 effects are what "classic" turns off.
-        assertEquals(false, after.mirrorGlyphs)
-        assertEquals(false, after.settleTrail)
-        assertEquals(false, after.tiltEnabled)
-        // It is a look, not a wipe: the message and clock preferences survive.
-        assertEquals("WAKE UP, NEO", after.message)
-        assertTrue(after.showClock)
     }
 
     @Test
