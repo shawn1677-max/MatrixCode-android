@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Matrix Code</string>
+    <string name="screensaver_name">Matrix Code Rain</string>
+    <string name="wallpaper_description">Falling code from a green-tinted world.</string>
+    <string name="start">▶  START SCREENSAVER</string>
+    <string name="randomize">RANDOMIZE</string>
+    <string name="reset">RESET</string>
+    <string name="preview_label">LIVE PREVIEW</string>
+    <string name="section_look">APPEARANCE</string>
+    <string name="section_motion">MOTION</string>
+    <string name="section_fx">EFFECTS</string>
+    <string name="section_saver">SCREENSAVER</string>
+    <string name="color_theme">Color</string>
+    <string name="glyph_set">Character set</string>
+    <string name="glyph_size">Glyph size</string>
+    <string name="density">Column density</string>
+    <string name="speed">Fall speed</string>
+    <string name="trail">Trail length</string>
+    <string name="mutation">Glyph churn</string>
+    <string name="glow">Glow</string>
+    <string name="scanlines">CRT scanlines</string>
+    <string name="glitch">Glitch</string>
+    <string name="show_clock">Show clock</string>
+    <string name="clock_24h">24-hour clock</string>
+    <string name="keep_screen_on">Keep screen awake</string>
+    <string name="set_as_daydream">SET AS SYSTEM SCREENSAVER</string>
+    <string name="set_as_wallpaper">SET AS LIVE WALLPAPER</string>
+    <string name="exit_hint">Tap anywhere or press back to exit</string>
+    <string name="no_daydream">Screensaver settings are not available on this device.</string>
+    <string name="no_wallpaper">Live wallpaper picker is not available on this device.</string>
+</resources>

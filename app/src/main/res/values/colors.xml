@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="matrix_green">#FF00FF41</color>
+    <color name="matrix_green_dim">#FF0B8F2E</color>
+    <color name="matrix_green_pale">#FFB9FFCB</color>
+    <color name="panel">#CC030A05</color>
+    <color name="panel_line">#3300FF41</color>
+</resources>
