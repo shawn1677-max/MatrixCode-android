@@ -107,10 +107,20 @@ content, so a broader range is defensible if you prefer.
 | --- | --- | --- |
 | App icon | 512x512, 32-bit PNG | `icon-512.png` |
 | Feature graphic | 1024x500, 24-bit PNG | `feature-graphic-1024x500.png` |
-| Phone screenshots | 2-8 required, 1080x1920 | `screenshot-1..5-*.png` |
+| Phone screenshots | 2-8 required, 1080x1920 | `screenshot-1..7-*.png` |
 
-Consider adding one screenshot of the settings screen taken on a real device —
-these five are rendered output and do not show the controls.
+Seven screenshots: five of the rain itself and two of the settings screen.
+
+The settings shots are captured by `SettingsShotTest` through Robolectric, so the
+controls are drawn by the real Android view code with the real layout, labels and
+slider values rather than being mocked up. The one part that cannot draw itself
+there is the preview panel: a SurfaceView renders through a separate surface and
+leaves a hole in the view hierarchy's own draw pass, so the rain is rendered
+separately and composited into exactly the rect the SurfaceView occupies — which
+is what a device shows in that panel.
+
+Worth a glance against a real device capture before publishing, since system font
+and widget theming can differ slightly by OEM.
 
 ## Privacy policy hosting
 

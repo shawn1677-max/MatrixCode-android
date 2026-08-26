@@ -177,13 +177,17 @@ than silently falling back to a debug key.
 
 `store/` holds everything the Play Console asks for — listing copy, the data
 safety and content rating answers, the 512x512 icon, the feature graphic and
-five phone screenshots. See `store/LISTING.md`. The screenshots are rendered
-from the real renderer by:
+seven phone screenshots. See `store/LISTING.md`. All of it is generated:
 
 ```
-./gradlew :app:testDebugUnitTest --tests '*StoreAssetsTest*'
+./gradlew :app:testDebugUnitTest --tests '*StoreAssetsTest*' --tests '*SettingsShotTest*'
 python3 tools/store_assets.py
 ```
+
+The rain shots come from the real renderer. The settings shots go through
+Robolectric, so the controls are drawn by the real Android view code rather than
+mocked up; the rain is composited into the preview panel because a SurfaceView
+leaves a hole in the view hierarchy's own draw pass.
 
 The privacy policy lives in `PRIVACY.md` and is published at
 **https://shawn1677-max.github.io/Codefall/** by GitHub Pages, served from

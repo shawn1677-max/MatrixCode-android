@@ -6,7 +6,8 @@ Play wants the feature graphic and screenshots as 24-bit PNG with no alpha chann
 and the icon as a 512x512 32-bit PNG. Bitmap.compress always writes RGBA, so the
 frames are flattened onto black here.
 
-Run after: ./gradlew :app:testDebugUnitTest --tests '*StoreAssetsTest*'
+Run after:
+    ./gradlew :app:testDebugUnitTest --tests '*StoreAssetsTest*' --tests '*SettingsShotTest*'
 """
 import os
 import random
@@ -77,10 +78,11 @@ def main():
     os.makedirs(DST, exist_ok=True)
     print("Play listing assets ->", DST)
     flatten("feature-raw.png", "feature-graphic-1024x500.png")
-    for n in range(1, 6):
-        match = [f for f in os.listdir(SRC) if f.startswith(f"screen-{n}-")]
-        if match:
-            flatten(match[0], match[0].replace("screen-", "screenshot-"))
+    shots = sorted(f for f in os.listdir(SRC) if f.startswith("screen-"))
+    if not shots:
+        sys.exit("no screen-*.png found - run the screenshot tests first")
+    for f in shots:
+        flatten(f, f.replace("screen-", "screenshot-"))
     build_icon()
 
 
