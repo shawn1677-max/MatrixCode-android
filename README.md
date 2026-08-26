@@ -162,8 +162,16 @@ from the real renderer by:
 python3 tools/store_assets.py
 ```
 
-The privacy policy is in `PRIVACY.md` and needs hosting at a public URL before
-Play will accept the listing.
+The privacy policy lives in `PRIVACY.md` and is published at
+**https://shawn1677-max.github.io/Codefall/** by GitHub Pages, served from
+`docs/` on `main`. `docs/index.html` is generated, not hand-written:
+
+```
+python3 tools/build_privacy_page.py
+```
+
+Edit `PRIVACY.md`, re-run that, and commit both — a privacy policy that
+contradicts itself across two files is worse than none.
 
 The tests render real frames off-device through Robolectric's native graphics
 mode and check them for blank output, rain reaching the full height, the right
