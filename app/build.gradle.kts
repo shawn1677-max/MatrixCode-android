@@ -70,7 +70,14 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
-            all { it.systemProperty("robolectric.graphicsMode", "NATIVE") }
+            all {
+                it.systemProperty("robolectric.graphicsMode", "NATIVE")
+                // The promo render writes ~750 full-size frames, so it stays out of
+                // the normal suite. Run it with: ./gradlew test... -Ppromo
+                if (!project.hasProperty("promo")) {
+                    it.filter { excludeTestsMatching("*PromoVideoTest*") }
+                }
+            }
         }
     }
 }

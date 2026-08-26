@@ -158,6 +158,31 @@ is what a device shows in that panel.
 Worth a glance against a real device capture before publishing, since system font
 and widget theming can differ slightly by OEM.
 
+## Promo video
+
+`dist/Codefall-promo.mp4` — 25 seconds, 1080x1920, H.264. Rendered frame by
+frame from the real engine by `PromoVideoTest`, so every second of it is the app
+running rather than a mockup or a screen recording.
+
+**Play takes a YouTube URL, not a file.** Upload the MP4 to YouTube first, then
+paste the watch link into the listing's Video field. Requirements Play enforces
+on that link: the video must be public or unlisted (not private), must not be
+age-restricted, and must have ads turned off on that specific video.
+
+To rebuild it:
+
+```
+./gradlew :app:testDebugUnitTest --tests '*PromoVideoTest*' -Ppromo
+python3 tools/build_promo.py
+```
+
+The render is excluded from the normal suite — it writes about 750 full-size
+frames — so it only runs with `-Ppromo`.
+
+Beat sheet, if you want to recut it: opening rain and wordmark, eight themes,
+six character sets, tilt steering, the message reveal, CRT filters, end card.
+The timings live in the scene constants at the top of `PromoVideoTest`.
+
 ## Privacy policy hosting
 
 The policy is served by GitHub Pages from `docs/` on `main`:

@@ -189,6 +189,17 @@ Robolectric, so the controls are drawn by the real Android view code rather than
 mocked up; the rain is composited into the preview panel because a SurfaceView
 leaves a hole in the view hierarchy's own draw pass.
 
+There is also a 25-second promo video at `dist/Codefall-promo.mp4`, rendered
+frame by frame from the real engine:
+
+```
+./gradlew :app:testDebugUnitTest --tests '*PromoVideoTest*' -Ppromo
+python3 tools/build_promo.py
+```
+
+That render is kept out of the normal suite behind `-Ppromo` because it writes
+about 750 full-size frames.
+
 The privacy policy lives in `PRIVACY.md` and is published at
 **https://shawn1677-max.github.io/Codefall/** by GitHub Pages, served from
 `docs/` on `main`. `docs/index.html` is generated, not hand-written:
